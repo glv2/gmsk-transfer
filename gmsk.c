@@ -88,21 +88,21 @@ void apply_gain(float complex *samples, unsigned int samples_size, float gain)
   }
 }
 
-void cu8_to_cf32(unsigned char *sample_cu8, float complex *sample_cf32)
-{
-  *sample_cf32 = ((sample_cu8[0] - 127) + I * (sample_cu8[1] - 127)) / 128.0;
-}
+/* void cu8_to_cf32(unsigned char *sample_cu8, float complex *sample_cf32) */
+/* { */
+/*   *sample_cf32 = ((sample_cu8[0] - 127) + I * (sample_cu8[1] - 127)) / 128.0; */
+/* } */
 
 void cs8_to_cf32(char *sample_cs8, float complex *sample_cf32)
 {
   *sample_cf32 = (sample_cs8[0] + I * sample_cs8[1]) / 128.0;
 }
 
-void cf32_to_cu8(float complex sample_cf32, unsigned char *sample_cu8)
-{
-  sample_cu8[0] = (unsigned char) ((crealf(sample_cf32) * 128.0) + 127);
-  sample_cu8[1] = (unsigned char) ((cimagf(sample_cf32) * 128.0) + 127);
-}
+/* void cf32_to_cu8(float complex sample_cf32, unsigned char *sample_cu8) */
+/* { */
+/*   sample_cu8[0] = (unsigned char) ((crealf(sample_cf32) * 128.0) + 127); */
+/*   sample_cu8[1] = (unsigned char) ((cimagf(sample_cf32) * 128.0) + 127); */
+/* } */
 
 void cf32_to_cs8(float complex sample_cf32, char *sample_cs8)
 {
@@ -224,14 +224,10 @@ int hackrf_sample_block_requested(hackrf_transfer *transfer)
     {
       fprintf(stderr, "U");
     }
+    bzero(transfer->buffer, n);
+    n = size;
   }
-  else if(n < size)
-  {
-    size = n;
-  }
-  /* Put samples at the end of the buffer to try to avoid holes
-     in the signal in case of underrun */
-  for(i = n - size; i < n; i++)
+  for(i = 0; i < n; i++)
   {
     cbuffercf_pop(radio->buffer, &sample);
     cf32_to_cs8(sample, (char *) &transfer->buffer[2 * i]);
@@ -285,7 +281,7 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int baud_rate)
   unsigned int payload_size = 40;
   unsigned char payload[payload_size];
   unsigned int n;
-  unsigned int frame_samples_size = 128;
+  unsigned int frame_samples_size = (baud_rate * SAMPLES_PER_SYMBOL) / 20; /* 50 ms */
   int frame_complete;
   unsigned int samples_size = (unsigned int) ceilf((frame_samples_size + delay) * resampling_ratio);
   float cutoff_frequency = (baud_rate * 2) / sample_rate;
@@ -330,11 +326,12 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int baud_rate)
     }
   }
 
-  for(n = 0; n < delay; n++)
+  for(n = 0; n < frame_samples_size; n++)
   {
     samples[n] = 0;
   }
-  msresamp_crcf_execute(resampler, samples, delay, samples, &n);
+  msresamp_crcf_execute(resampler, samples, frame_samples_size, samples, &n);
+  iirfilt_crcf_execute_block(low_pass, samples, n, samples);
   send_to_radio(radio, samples, n);
 
   if(radio->type == HACKRF)
@@ -390,7 +387,7 @@ void receive_frames(radio_t *radio, float sample_rate, unsigned int baud_rate)
   msresamp_crcf resampler = msresamp_crcf_create(resampling_ratio, 60);
   unsigned int delay = (unsigned int) ceilf(msresamp_crcf_get_delay(resampler));
   unsigned int n;
-  unsigned int frame_samples_size = 128;
+  unsigned int frame_samples_size = (baud_rate * SAMPLES_PER_SYMBOL) / 20; /* 50 ms */
   unsigned int samples_size = (unsigned int) floorf(frame_samples_size / resampling_ratio) + delay;
   float frequency_offset = (float) radio->frequency - radio->center_frequency;
   nco_crcf oscillator = nco_crcf_create(LIQUID_NCO);
@@ -425,7 +422,7 @@ void receive_frames(radio_t *radio, float sample_rate, unsigned int baud_rate)
       nco_crcf_mix_block_down(oscillator, samples, samples, n);
     }
     iirfilt_crcf_execute_block(low_pass, samples, n, samples);
-    //dump_samples(samples, n);
+    /* dump_samples(samples, n); */
     msresamp_crcf_execute(resampler, samples, n, frame_samples, &n);
     gmskframesync_execute(frame_synchronizer, frame_samples, n);
   }
@@ -462,7 +459,9 @@ void usage()
   printf("Options:\n");
   printf("  -b <baud rate>  [default: 9600 b/s]\n");
   printf("    Baud rate of the GMSK transmission.\n");
-  printf("  -f <frequency>  [default: 868006250 Hz]\n");
+  printf("  -c <ppm>  [default: 0]\n");
+  printf("    Correction for the radio clock.\n");
+  printf("  -f <frequency>  [default: 434000000 Hz]\n");
   printf("    Central frequency of the GMSK transmission.\n");
   printf("  -g <gain>  [default: 0]\n");
   printf("    Gain of the radio transceiver.\n");
@@ -514,15 +513,20 @@ int main(int argc, char **argv)
   unsigned int emit = 0;
   unsigned int gain = 0;
   int offset = 0;
+  int ppm = 0; // 11;
 
-  radio.frequency = 868006250;
+  radio.frequency = 434000000;
 
-  while((opt = getopt(argc, argv, "b:f:g:ho:r:s:tv")) != -1)
+  while((opt = getopt(argc, argv, "b:c:f:g:ho:r:s:tv")) != -1)
   {
     switch(opt)
     {
     case 'b':
       baud_rate = strtoul(optarg, NULL, 10);
+      break;
+
+    case 'c':
+      ppm = strtol(optarg, NULL, 10);
       break;
 
     case 'f':
@@ -597,9 +601,14 @@ int main(int argc, char **argv)
     }
   }
 
+  if(ppm != 0)
+  {
+    sample_rate = sample_rate * ((1000000.0 - ppm) / 1000000.0);
+    radio.frequency = (unsigned long int) (radio.frequency * ((1000000.0 - ppm) / 1000000.0));
+  }
   radio.center_frequency = radio.frequency;
 
-  /* dump = fopen("/tmp/samples.cf32", "wb"); */
+  /* dump = fopen("/tmp/samples-dump.cf32", "wb"); */
   /* if(dump == NULL) */
   /* { */
   /*   fprintf(stderr, "Error: Failed to open '%s'\n", "/tmp/samples.cf32"); */
@@ -623,6 +632,7 @@ int main(int argc, char **argv)
     }
     else
     {
+      radio.center_frequency = radio.frequency - offset;
       receive_frames(&radio, sample_rate, baud_rate);
     }
     break;
@@ -664,6 +674,11 @@ int main(int argc, char **argv)
   default:
     fprintf(stderr, "Error: Unknown radio type");
     return(-1);
+  }
+
+  if(verbose)
+  {
+    printf("\n");
   }
 
   return(0);
