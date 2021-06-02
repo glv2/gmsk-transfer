@@ -22,17 +22,29 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <libhackrf/hackrf.h>
 #include <liquid/liquid.h>
 #include <math.h>
+#include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
+#define TAU (2 * M_PI)
 #define SAMPLES_PER_SYMBOL 2
 #define CRC LIQUID_CRC_32
 #define FEC0 LIQUID_FEC_HAMMING74
 //#define FEC1 LIQUID_FEC_REP3
 #define FEC1 LIQUID_FEC_NONE
+
+#define HACKRF_CHECK(funcall) \
+{ \
+  int e = funcall; \
+  if(e != 0) \
+  { \
+    fprintf(stderr, "Error: %s\n", hackrf_error_name(e)); \
+    exit(-1); \
+  } \
+}
 
 typedef enum
   {
@@ -50,11 +62,21 @@ typedef struct
   radio_type_t type;
   radio_device_t device;
   cbuffercf buffer;
+  pthread_mutex_t buffer_mutex;
+  unsigned long int frequency;
+  unsigned long int center_frequency;
 } radio_t;
 
 FILE *file = NULL;
 unsigned char stop = 0;
 unsigned char verbose = 1;
+
+FILE *dump = NULL;
+
+void dump_samples(float complex *samples, unsigned int samples_size)
+{
+  fwrite(samples, sizeof(float complex), samples_size, dump);
+}
 
 void apply_gain(float complex *samples, unsigned int samples_size, float gain)
 {
@@ -103,7 +125,6 @@ void send_to_radio(radio_t *radio,
                    float complex *samples,
                    unsigned int samples_size)
 {
-  unsigned char sample_cs8[2];
   unsigned int size;
   unsigned int i;
   unsigned int n;
@@ -126,7 +147,9 @@ void send_to_radio(radio_t *radio,
         {
           n = size;
         }
+        pthread_mutex_lock(&radio->buffer_mutex);
         cbuffercf_write(radio->buffer, &samples[i], n);
+        pthread_mutex_unlock(&radio->buffer_mutex);
         i += n;
         size -= n;
       }
@@ -147,7 +170,6 @@ unsigned int receive_from_radio(radio_t *radio,
                                 float complex *samples,
                                 unsigned int samples_size)
 {
-  unsigned char sample_cs8[2];
   unsigned int i;
   unsigned int n;
 
@@ -165,10 +187,12 @@ unsigned int receive_from_radio(radio_t *radio,
       {
         n = samples_size;
       }
+      pthread_mutex_lock(&radio->buffer_mutex);
       for(i = 0; i < n; i++)
       {
         cbuffercf_pop(radio->buffer, &samples[i]);
       }
+      pthread_mutex_unlock(&radio->buffer_mutex);
     }
     else
     {
@@ -183,7 +207,7 @@ int hackrf_sample_block_requested(hackrf_transfer *transfer)
 {
   radio_t *radio = (radio_t *) transfer->tx_ctx;
   unsigned int n = transfer->valid_length / 2;
-  unsigned int size = cbuffercf_size(radio->buffer);
+  unsigned int size;
   unsigned int i;
   float complex sample;
 
@@ -191,19 +215,29 @@ int hackrf_sample_block_requested(hackrf_transfer *transfer)
   {
     return(-1);
   }
+
+  pthread_mutex_lock(&radio->buffer_mutex);
+  size = cbuffercf_size(radio->buffer);
   if(n > size)
   {
     if(verbose)
     {
       fprintf(stderr, "U");
     }
-    n = size;
   }
-  for(i = 0; i < n; i++)
+  else if(n < size)
+  {
+    size = n;
+  }
+  /* Put samples at the end of the buffer to try to avoid holes
+     in the signal in case of underrun */
+  for(i = n - size; i < n; i++)
   {
     cbuffercf_pop(radio->buffer, &sample);
-    cf32_to_cs8(sample, &transfer->buffer[2 * i]);
+    cf32_to_cs8(sample, (char *) &transfer->buffer[2 * i]);
   }
+  pthread_mutex_unlock(&radio->buffer_mutex);
+
   return(0);
 }
 
@@ -211,7 +245,7 @@ int hackrf_sample_block_received(hackrf_transfer *transfer)
 {
   radio_t *radio = (radio_t *) transfer->rx_ctx;
   unsigned int n = transfer->valid_length / 2;
-  unsigned int size = cbuffercf_space_available(radio->buffer);
+  unsigned int size;
   unsigned int i;
   float complex sample;
 
@@ -219,6 +253,9 @@ int hackrf_sample_block_received(hackrf_transfer *transfer)
   {
     return(-1);
   }
+
+  pthread_mutex_lock(&radio->buffer_mutex);
+  size = cbuffercf_space_available(radio->buffer);
   if(n > size)
   {
     if(verbose)
@@ -229,9 +266,11 @@ int hackrf_sample_block_received(hackrf_transfer *transfer)
   }
   for(i = 0; i < n; i++)
   {
-    cs8_to_cf32(&transfer->buffer[2 * i], &sample);
+    cs8_to_cf32((char *) &transfer->buffer[2 * i], &sample);
     cbuffercf_push(radio->buffer, sample);
   }
+  pthread_mutex_unlock(&radio->buffer_mutex);
+
   return(0);
 }
 
@@ -249,6 +288,8 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int baud_rate)
   unsigned int frame_samples_size = 128;
   int frame_complete;
   unsigned int samples_size = (unsigned int) ceilf((frame_samples_size + delay) * resampling_ratio);
+  float cutoff_frequency = (baud_rate * 2) / sample_rate;
+  iirfilt_crcf low_pass = iirfilt_crcf_create_lowpass(5, cutoff_frequency);
   float complex *frame_samples = malloc(frame_samples_size * sizeof(float complex));
   float complex *samples = malloc(samples_size * sizeof(float complex));
 
@@ -280,8 +321,9 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int baud_rate)
       n += SAMPLES_PER_SYMBOL;
       if(frame_complete || (n + SAMPLES_PER_SYMBOL > frame_samples_size))
       {
-        apply_gain(frame_samples, n, 0.5);
+        apply_gain(frame_samples, n, 0.75);
         msresamp_crcf_execute(resampler, frame_samples, n, samples, &n);
+        iirfilt_crcf_execute_block(low_pass, samples, n, samples);
         send_to_radio(radio, samples, n);
         n = 0;
       }
@@ -313,6 +355,7 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int baud_rate)
 
   free(samples);
   free(frame_samples);
+  iirfilt_crcf_destroy(low_pass);
   msresamp_crcf_destroy(resampler);
   gmskframegen_destroy(frame_generator);
 }
@@ -349,6 +392,10 @@ void receive_frames(radio_t *radio, float sample_rate, unsigned int baud_rate)
   unsigned int n;
   unsigned int frame_samples_size = 128;
   unsigned int samples_size = (unsigned int) floorf(frame_samples_size / resampling_ratio) + delay;
+  float frequency_offset = (float) radio->frequency - radio->center_frequency;
+  nco_crcf oscillator = nco_crcf_create(LIQUID_NCO);
+  float cutoff_frequency = (baud_rate * 2) / sample_rate;
+  iirfilt_crcf low_pass = iirfilt_crcf_create_lowpass(5, cutoff_frequency);
   float complex *frame_samples = malloc((frame_samples_size + delay) * sizeof(float complex));
   float complex *samples = malloc(samples_size * sizeof(float complex));
 
@@ -358,17 +405,27 @@ void receive_frames(radio_t *radio, float sample_rate, unsigned int baud_rate)
     return;
   }
 
+  nco_crcf_set_phase(oscillator, 0);
+  nco_crcf_set_frequency(oscillator, TAU * (frequency_offset / sample_rate));
+
   while(1)
   {
     if(stop)
     {
       break;
     }
+
     n = receive_from_radio(radio, samples, samples_size);
     if((n == 0) && (radio->type == IO))
     {
       break;
     }
+    if(frequency_offset != 0)
+    {
+      nco_crcf_mix_block_down(oscillator, samples, samples, n);
+    }
+    iirfilt_crcf_execute_block(low_pass, samples, n, samples);
+    //dump_samples(samples, n);
     msresamp_crcf_execute(resampler, samples, n, frame_samples, &n);
     gmskframesync_execute(frame_synchronizer, frame_samples, n);
   }
@@ -382,6 +439,8 @@ void receive_frames(radio_t *radio, float sample_rate, unsigned int baud_rate)
 
   free(samples);
   free(frame_samples);
+  iirfilt_crcf_destroy(low_pass);
+  nco_crcf_destroy(oscillator);
   msresamp_crcf_destroy(resampler);
   gmskframesync_destroy(frame_synchronizer);
 }
@@ -405,14 +464,19 @@ void usage()
   printf("    Baud rate of the GMSK transmission.\n");
   printf("  -f <frequency>  [default: 868006250 Hz]\n");
   printf("    Central frequency of the GMSK transmission.\n");
+  printf("  -g <gain>  [default: 0]\n");
+  printf("    Gain of the radio transceiver.\n");
   printf("  -h\n");
   printf("    This help.\n");
+  printf("  -o <offset>  [default: 0 Hz, can be negative]\n");
+  printf("    Set the central frequency of the receiver lower than\n");
+  printf("    the signal frequency to receive.\n");
   printf("  -r <radio type>  [default: io]\n");
   printf("    Type of radio to use.\n");
   printf("    Supported types:\n");
   printf("      - io: standard input/output\n");
   printf("      - hackrf: HackRF SDR\n");
-  printf("  -s <sample rate>  [default: 2000000 S/s]\n");
+  printf("  -s <sample rate>  [default: 8000000 S/s]\n");
   printf("    Sample rate to use.\n");
   printf("  -t\n");
   printf("    Use transmit mode.\n");
@@ -443,14 +507,17 @@ void usage()
 int main(int argc, char **argv)
 {
   int opt;
-  unsigned int frequency = 868006250;
-  float sample_rate = 2000000;
+  float sample_rate = 8000000;
   float baud_rate = 9600;
   radio_type_t radio_type = IO;
   radio_t radio;
   unsigned int emit = 0;
+  unsigned int gain = 0;
+  int offset = 0;
 
-  while((opt = getopt(argc, argv, "b:f:hr:s:tv")) != -1)
+  radio.frequency = 868006250;
+
+  while((opt = getopt(argc, argv, "b:f:g:ho:r:s:tv")) != -1)
   {
     switch(opt)
     {
@@ -459,12 +526,20 @@ int main(int argc, char **argv)
       break;
 
     case 'f':
-      frequency = strtoul(optarg, NULL, 10);
+      radio.frequency = strtoul(optarg, NULL, 10);
+      break;
+
+    case 'g':
+      gain = strtoul(optarg, NULL, 10);
       break;
 
     case 'h':
       usage();
       return(0);
+
+    case 'o':
+      offset = strtol(optarg, NULL, 10);
+      break;
 
     case 's':
       sample_rate = strtoul(optarg, NULL, 10);
@@ -506,7 +581,7 @@ int main(int argc, char **argv)
     }
     if(file == NULL)
     {
-      fprintf(stderr, "Error: Failed to open '%s'_n", argv[optind]);
+      fprintf(stderr, "Error: Failed to open '%s'\n", argv[optind]);
       return(-1);
     }
   }
@@ -521,6 +596,15 @@ int main(int argc, char **argv)
       file = stdout;
     }
   }
+
+  radio.center_frequency = radio.frequency;
+
+  /* dump = fopen("/tmp/samples.cf32", "wb"); */
+  /* if(dump == NULL) */
+  /* { */
+  /*   fprintf(stderr, "Error: Failed to open '%s'\n", "/tmp/samples.cf32"); */
+  /*   return(-1); */
+  /* } */
 
   signal(SIGINT, &signal_handler);
   /* signal(SIGILL, &signal_handler); */
@@ -546,29 +630,34 @@ int main(int argc, char **argv)
   case HACKRF:
     radio.type = HACKRF;
     radio.buffer = cbuffercf_create(sample_rate);
-    hackrf_init();
-    hackrf_open(&radio.device.hackrf);
-    hackrf_set_lna_gain(radio.device.hackrf, 32);
-    hackrf_set_vga_gain(radio.device.hackrf, 20);
-    hackrf_set_txvga_gain(radio.device.hackrf, 0);
-    hackrf_set_amp_enable(radio.device.hackrf, 0);
-    hackrf_set_freq(radio.device.hackrf, frequency);
-    hackrf_set_sample_rate(radio.device.hackrf, sample_rate);
-    hackrf_set_baseband_filter_bandwidth(radio.device.hackrf, hackrf_compute_baseband_filter_bw(sample_rate));
+    pthread_mutex_init(&radio.buffer_mutex, NULL);
+    HACKRF_CHECK(hackrf_init());
+    HACKRF_CHECK(hackrf_open(&radio.device.hackrf));
+    HACKRF_CHECK(hackrf_set_amp_enable(radio.device.hackrf, 0));
+    HACKRF_CHECK(hackrf_set_sample_rate(radio.device.hackrf, sample_rate));
+    HACKRF_CHECK(hackrf_set_baseband_filter_bandwidth(radio.device.hackrf, hackrf_compute_baseband_filter_bw(sample_rate)));
     if(emit)
     {
-      hackrf_start_tx(radio.device.hackrf, hackrf_sample_block_requested, (void *) &radio);
+      radio.center_frequency = radio.frequency;
+      HACKRF_CHECK(hackrf_set_freq(radio.device.hackrf, radio.center_frequency));
+      HACKRF_CHECK(hackrf_set_txvga_gain(radio.device.hackrf, gain));
+      HACKRF_CHECK(hackrf_start_tx(radio.device.hackrf, hackrf_sample_block_requested, (void *) &radio));
       send_frames(&radio, sample_rate, baud_rate);
-      hackrf_stop_tx(radio.device.hackrf);
+      HACKRF_CHECK(hackrf_stop_tx(radio.device.hackrf));
     }
     else
     {
-      hackrf_start_rx(radio.device.hackrf, hackrf_sample_block_received, (void *) &radio);
+      radio.center_frequency = radio.frequency - offset;
+      HACKRF_CHECK(hackrf_set_freq(radio.device.hackrf, radio.center_frequency));
+      HACKRF_CHECK(hackrf_set_lna_gain(radio.device.hackrf, gain));
+      HACKRF_CHECK(hackrf_set_vga_gain(radio.device.hackrf, 20));
+      HACKRF_CHECK(hackrf_start_rx(radio.device.hackrf, hackrf_sample_block_received, (void *) &radio));
       receive_frames(&radio, sample_rate, baud_rate);
-      hackrf_stop_rx(radio.device.hackrf);
+      HACKRF_CHECK(hackrf_stop_rx(radio.device.hackrf));
     }
-    hackrf_close(radio.device.hackrf);
-    hackrf_exit();
+    HACKRF_CHECK(hackrf_close(radio.device.hackrf));
+    HACKRF_CHECK(hackrf_exit());
+    pthread_mutex_destroy(&radio.buffer_mutex);
     cbuffercf_destroy(radio.buffer);
     break;
 
