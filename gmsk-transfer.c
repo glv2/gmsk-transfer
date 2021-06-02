@@ -1,6 +1,6 @@
 /*
-This file is part of gmsk, a program to send/receive data by radio
-using the GMSK modulation.
+This file is part of gmsk-transfer, a program to send or receive data
+by radio using the GMSK modulation.
 
 Copyright 2021 Guillaume LE VAILLANT
 
@@ -295,7 +295,7 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int baud_rate)
     return;
   }
   gmskframegen_set_header_len(frame_generator, header_size);
-  memcpy(header, "GMSKGMSK", 8);
+  memcpy(header, "GMSKXFER", 8);
 
   while(1)
   {
@@ -454,7 +454,7 @@ void signal_handler(int signum)
 
 void usage()
 {
-  printf("Usage: gmsk [options] [filename]\n");
+  printf("Usage: gmsk-transfer [options] [filename]\n");
   printf("\n");
   printf("Options:\n");
   printf("  -b <baud rate>  [default: 9600 b/s]\n");
@@ -676,9 +676,11 @@ int main(int argc, char **argv)
     return(-1);
   }
 
+  fclose(file);
+  /* fclose(dump); */
   if(verbose)
   {
-    printf("\n");
+    fprintf(stderr, "\n");
   }
 
   return(0);
