@@ -129,6 +129,11 @@ void send_to_radio(radio_t *radio,
   unsigned int i;
   unsigned int n;
 
+  if(dump)
+  {
+    dump_samples(samples, samples_size);
+  }
+
   switch(radio->type)
   {
   case IO:
@@ -415,7 +420,10 @@ void receive_frames(radio_t *radio, float sample_rate, unsigned int baud_rate)
       nco_crcf_mix_block_down(oscillator, samples, samples, n);
     }
     iirfilt_crcf_execute_block(low_pass, samples, n, samples);
-    /* dump_samples(samples, n); */
+    if(dump)
+    {
+      dump_samples(samples, n);
+    }
     msresamp_crcf_execute(resampler, samples, n, frame_samples, &n);
     gmskframesync_execute(frame_synchronizer, frame_samples, n);
   }
@@ -456,6 +464,9 @@ void usage()
   printf("    Baud rate of the GMSK transmission.\n");
   printf("  -c <ppm>  [default: 0, can be negative]\n");
   printf("    Correction for the radio clock.\n");
+  printf("  -d <filename>\n");
+  printf("    Dump a copy of the samples sent to or received from\n");
+  printf("    the radio (after filtering).\n");
   printf("  -f <frequency>  [default: 434000000 Hz]\n");
   printf("    Frequency of the GMSK transmission.\n");
   printf("  -g <gain>  [default: 0]\n");
@@ -511,7 +522,7 @@ int main(int argc, char **argv)
 
   radio.frequency = 434000000;
 
-  while((opt = getopt(argc, argv, "b:c:f:g:ho:r:s:tv")) != -1)
+  while((opt = getopt(argc, argv, "b:c:d:f:g:ho:r:s:tv")) != -1)
   {
     switch(opt)
     {
@@ -521,6 +532,15 @@ int main(int argc, char **argv)
 
     case 'c':
       ppm = strtol(optarg, NULL, 10);
+      break;
+
+    case 'd':
+      dump = fopen(optarg, "wb");
+      if(dump == NULL)
+      {
+        fprintf(stderr, "Error: Failed to open '%s'\n", optarg);
+        return(-1);
+      }
       break;
 
     case 'f':
@@ -602,13 +622,6 @@ int main(int argc, char **argv)
   }
   radio.center_frequency = radio.frequency;
 
-  dump = fopen("/tmp/samples-dump.cf32", "wb");
-  if(dump == NULL)
-  {
-    fprintf(stderr, "Error: Failed to open '%s'\n", "/tmp/samples.cf32");
-    return(-1);
-  }
-
   signal(SIGINT, &signal_handler);
   /* signal(SIGILL, &signal_handler); */
   /* signal(SIGFPE, &signal_handler); */
@@ -671,7 +684,10 @@ int main(int argc, char **argv)
   }
 
   fclose(file);
-  fclose(dump);
+  if(dump)
+  {
+    fclose(dump);
+  }
   if(verbose)
   {
     fprintf(stderr, "\n");
