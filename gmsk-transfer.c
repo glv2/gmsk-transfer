@@ -170,28 +170,22 @@ unsigned int receive_from_radio(radio_t *radio,
                                 float complex *samples,
                                 unsigned int samples_size)
 {
-  unsigned int i;
-  unsigned int n;
+  unsigned int size = 0;
+  float complex *buffer_samples;
 
   switch(radio->type)
   {
   case IO:
-    n = fread(samples, sizeof(float complex), samples_size, stdin);
+    size = fread(samples, sizeof(float complex), samples_size, stdin);
     break;
 
   case HACKRF:
-    n = cbuffercf_size(radio->buffer);
-    if(n > 0)
+    if(cbuffercf_size(radio->buffer) > 0)
     {
-      if(n > samples_size)
-      {
-        n = samples_size;
-      }
       pthread_mutex_lock(&radio->buffer_mutex);
-      for(i = 0; i < n; i++)
-      {
-        cbuffercf_pop(radio->buffer, &samples[i]);
-      }
+      cbuffercf_read(radio->buffer, samples_size, &buffer_samples, &size);
+      memcpy(samples, buffer_samples, size * sizeof(float complex));
+      cbuffercf_release(radio->buffer, size);
       pthread_mutex_unlock(&radio->buffer_mutex);
     }
     else
@@ -200,16 +194,16 @@ unsigned int receive_from_radio(radio_t *radio,
     }
     break;
   }
-  return(n);
+  return(size);
 }
 
 int hackrf_sample_block_requested(hackrf_transfer *transfer)
 {
   radio_t *radio = (radio_t *) transfer->tx_ctx;
-  unsigned int n = transfer->valid_length / 2;
+  unsigned int requested = transfer->valid_length / 2;
   unsigned int size;
   unsigned int i;
-  float complex sample;
+  float complex *samples;
 
   if(stop)
   {
@@ -217,21 +211,20 @@ int hackrf_sample_block_requested(hackrf_transfer *transfer)
   }
 
   pthread_mutex_lock(&radio->buffer_mutex);
-  size = cbuffercf_size(radio->buffer);
-  if(n > size)
+  cbuffercf_read(radio->buffer, requested, &samples, &size);
+  if(size < requested)
   {
     if(verbose)
     {
       fprintf(stderr, "U");
     }
-    bzero(transfer->buffer, n);
-    n = size;
+    bzero(&transfer->buffer[2 * size], 2 * (requested - size));
   }
-  for(i = 0; i < n; i++)
+  for(i = 0; i < size; i++)
   {
-    cbuffercf_pop(radio->buffer, &sample);
-    cf32_to_cs8(sample, (char *) &transfer->buffer[2 * i]);
+    cf32_to_cs8(samples[i], (char *) &transfer->buffer[2 * i]);
   }
+  cbuffercf_release(radio->buffer, size);
   pthread_mutex_unlock(&radio->buffer_mutex);
 
   return(0);
@@ -285,7 +278,7 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int baud_rate)
   int frame_complete;
   unsigned int samples_size = (unsigned int) ceilf((frame_samples_size + delay) * resampling_ratio);
   float cutoff_frequency = (baud_rate * 2) / sample_rate;
-  iirfilt_crcf low_pass = iirfilt_crcf_create_lowpass(5, cutoff_frequency);
+  iirfilt_crcf low_pass = iirfilt_crcf_create_lowpass(2, cutoff_frequency);
   float complex *frame_samples = malloc(frame_samples_size * sizeof(float complex));
   float complex *samples = malloc(samples_size * sizeof(float complex));
 
@@ -392,7 +385,7 @@ void receive_frames(radio_t *radio, float sample_rate, unsigned int baud_rate)
   float frequency_offset = (float) radio->frequency - radio->center_frequency;
   nco_crcf oscillator = nco_crcf_create(LIQUID_NCO);
   float cutoff_frequency = (baud_rate * 2) / sample_rate;
-  iirfilt_crcf low_pass = iirfilt_crcf_create_lowpass(5, cutoff_frequency);
+  iirfilt_crcf low_pass = iirfilt_crcf_create_lowpass(2, cutoff_frequency);
   float complex *frame_samples = malloc((frame_samples_size + delay) * sizeof(float complex));
   float complex *samples = malloc(samples_size * sizeof(float complex));
 
@@ -609,12 +602,12 @@ int main(int argc, char **argv)
   }
   radio.center_frequency = radio.frequency;
 
-  /* dump = fopen("/tmp/samples-dump.cf32", "wb"); */
-  /* if(dump == NULL) */
-  /* { */
-  /*   fprintf(stderr, "Error: Failed to open '%s'\n", "/tmp/samples.cf32"); */
-  /*   return(-1); */
-  /* } */
+  dump = fopen("/tmp/samples-dump.cf32", "wb");
+  if(dump == NULL)
+  {
+    fprintf(stderr, "Error: Failed to open '%s'\n", "/tmp/samples.cf32");
+    return(-1);
+  }
 
   signal(SIGINT, &signal_handler);
   /* signal(SIGILL, &signal_handler); */
@@ -678,7 +671,7 @@ int main(int argc, char **argv)
   }
 
   fclose(file);
-  /* fclose(dump); */
+  fclose(dump);
   if(verbose)
   {
     fprintf(stderr, "\n");
