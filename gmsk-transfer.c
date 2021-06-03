@@ -454,22 +454,24 @@ void signal_handler(int signum)
 
 void usage()
 {
+  printf("gmsk-transfer version 1.0.0\n");
+  printf("\n");
   printf("Usage: gmsk-transfer [options] [filename]\n");
   printf("\n");
   printf("Options:\n");
   printf("  -b <baud rate>  [default: 9600 b/s]\n");
   printf("    Baud rate of the GMSK transmission.\n");
-  printf("  -c <ppm>  [default: 0]\n");
+  printf("  -c <ppm>  [default: 0, can be negative]\n");
   printf("    Correction for the radio clock.\n");
   printf("  -f <frequency>  [default: 434000000 Hz]\n");
-  printf("    Central frequency of the GMSK transmission.\n");
+  printf("    Frequency of the GMSK transmission.\n");
   printf("  -g <gain>  [default: 0]\n");
   printf("    Gain of the radio transceiver.\n");
   printf("  -h\n");
   printf("    This help.\n");
   printf("  -o <offset>  [default: 0 Hz, can be negative]\n");
-  printf("    Set the central frequency of the receiver lower than\n");
-  printf("    the signal frequency to receive.\n");
+  printf("    Set the central frequency of the receiver 'offset' Hz\n");
+  printf("    lower than the signal frequency to receive.\n");
   printf("  -r <radio type>  [default: io]\n");
   printf("    Type of radio to use.\n");
   printf("    Supported types:\n");
@@ -498,8 +500,7 @@ void usage()
   printf("\n");
   printf("Instead of a real radio transceiver, the 'io' radio type uses\n");
   printf("standard input in 'receive' mode, and standard output in\n");
-  printf("'transmit' mode.\n");
-  printf("The samples must be in 'float complex' format\n");
+  printf("'transmit' mode. The samples must be in 'float complex' format\n");
   printf("(32 bits for the real part, 32 bits for the imaginary part).\n");
 }
 
