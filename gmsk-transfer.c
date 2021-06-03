@@ -282,8 +282,18 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int baud_rate)
   unsigned int frame_samples_size = (baud_rate * SAMPLES_PER_SYMBOL) / 20; /* 50 ms */
   int frame_complete;
   unsigned int samples_size = (unsigned int) ceilf((frame_samples_size + delay) * resampling_ratio);
-  float cutoff_frequency = (baud_rate * 2) / sample_rate;
-  iirfilt_crcf low_pass = iirfilt_crcf_create_lowpass(2, cutoff_frequency);
+  float frequency_offset = (float) radio->frequency - radio->center_frequency;
+  float center_frequency = frequency_offset / sample_rate;
+  float cutoff_frequency = (frequency_offset + (baud_rate * 2)) / sample_rate;
+  iirfilt_crcf band_pass = iirfilt_crcf_create_prototype(LIQUID_IIRDES_BUTTER,
+                                                         LIQUID_IIRDES_BANDPASS,
+                                                         LIQUID_IIRDES_SOS,
+                                                         1,
+                                                         cutoff_frequency,
+                                                         center_frequency,
+                                                         1,
+                                                         60);
+  nco_crcf oscillator = nco_crcf_create(LIQUID_NCO);
   float complex *frame_samples = malloc(frame_samples_size * sizeof(float complex));
   float complex *samples = malloc(samples_size * sizeof(float complex));
 
@@ -292,6 +302,10 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int baud_rate)
     fprintf(stderr, "Error: Memory allocation failed");
     return;
   }
+
+  nco_crcf_set_phase(oscillator, 0);
+  nco_crcf_set_frequency(oscillator, TAU * center_frequency);
+
   gmskframegen_set_header_len(frame_generator, header_size);
   memcpy(header, "GMSKXFER", 8);
 
@@ -317,7 +331,11 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int baud_rate)
       {
         apply_gain(frame_samples, n, 0.75);
         msresamp_crcf_execute(resampler, frame_samples, n, samples, &n);
-        iirfilt_crcf_execute_block(low_pass, samples, n, samples);
+        if(frequency_offset != 0)
+        {
+          nco_crcf_mix_block_up(oscillator, samples, samples, n);
+        }
+        iirfilt_crcf_execute_block(band_pass, samples, n, samples);
         send_to_radio(radio, samples, n);
         n = 0;
       }
@@ -329,7 +347,11 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int baud_rate)
     samples[n] = 0;
   }
   msresamp_crcf_execute(resampler, samples, frame_samples_size, samples, &n);
-  iirfilt_crcf_execute_block(low_pass, samples, n, samples);
+  if(frequency_offset != 0)
+  {
+    nco_crcf_mix_block_down(oscillator, samples, samples, n);
+  }
+  iirfilt_crcf_execute_block(band_pass, samples, n, samples);
   send_to_radio(radio, samples, n);
 
   if(radio->type == HACKRF)
@@ -350,7 +372,8 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int baud_rate)
 
   free(samples);
   free(frame_samples);
-  iirfilt_crcf_destroy(low_pass);
+  nco_crcf_destroy(oscillator);
+  iirfilt_crcf_destroy(band_pass);
   msresamp_crcf_destroy(resampler);
   gmskframegen_destroy(frame_generator);
 }
@@ -474,8 +497,8 @@ void usage()
   printf("  -h\n");
   printf("    This help.\n");
   printf("  -o <offset>  [default: 0 Hz, can be negative]\n");
-  printf("    Set the central frequency of the receiver 'offset' Hz\n");
-  printf("    lower than the signal frequency to receive.\n");
+  printf("    Set the central frequency of the transceiver 'offset' Hz\n");
+  printf("    lower than the signal frequency to send or receive.\n");
   printf("  -r <radio type>  [default: io]\n");
   printf("    Type of radio to use.\n");
   printf("    Supported types:\n");
@@ -620,12 +643,9 @@ int main(int argc, char **argv)
     sample_rate = sample_rate * ((1000000.0 - ppm) / 1000000.0);
     radio.frequency = (unsigned long int) (radio.frequency * ((1000000.0 - ppm) / 1000000.0));
   }
-  radio.center_frequency = radio.frequency;
+  radio.center_frequency = radio.frequency - offset;
 
   signal(SIGINT, &signal_handler);
-  /* signal(SIGILL, &signal_handler); */
-  /* signal(SIGFPE, &signal_handler); */
-  /* signal(SIGSEGV, &signal_handler); */
   signal(SIGTERM, &signal_handler);
   signal(SIGABRT, &signal_handler);
 
@@ -639,7 +659,6 @@ int main(int argc, char **argv)
     }
     else
     {
-      radio.center_frequency = radio.frequency - offset;
       receive_frames(&radio, sample_rate, baud_rate);
     }
     break;
@@ -653,10 +672,9 @@ int main(int argc, char **argv)
     HACKRF_CHECK(hackrf_set_amp_enable(radio.device.hackrf, 0));
     HACKRF_CHECK(hackrf_set_sample_rate(radio.device.hackrf, sample_rate));
     HACKRF_CHECK(hackrf_set_baseband_filter_bandwidth(radio.device.hackrf, hackrf_compute_baseband_filter_bw(sample_rate)));
+    HACKRF_CHECK(hackrf_set_freq(radio.device.hackrf, radio.center_frequency));
     if(emit)
     {
-      radio.center_frequency = radio.frequency;
-      HACKRF_CHECK(hackrf_set_freq(radio.device.hackrf, radio.center_frequency));
       HACKRF_CHECK(hackrf_set_txvga_gain(radio.device.hackrf, gain));
       HACKRF_CHECK(hackrf_start_tx(radio.device.hackrf, hackrf_sample_block_requested, (void *) &radio));
       send_frames(&radio, sample_rate, baud_rate);
@@ -664,8 +682,6 @@ int main(int argc, char **argv)
     }
     else
     {
-      radio.center_frequency = radio.frequency - offset;
-      HACKRF_CHECK(hackrf_set_freq(radio.device.hackrf, radio.center_frequency));
       HACKRF_CHECK(hackrf_set_lna_gain(radio.device.hackrf, gain));
       HACKRF_CHECK(hackrf_set_vga_gain(radio.device.hackrf, 20));
       HACKRF_CHECK(hackrf_start_rx(radio.device.hackrf, hackrf_sample_block_received, (void *) &radio));
