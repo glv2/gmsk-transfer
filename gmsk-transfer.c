@@ -490,7 +490,7 @@ void usage()
   printf("  -o <offset>  [default: 0 Hz, can be negative]\n");
   printf("    Set the central frequency of the transceiver 'offset' Hz\n");
   printf("    lower than the signal frequency to send or receive.\n");
-  printf("  -r <radio type>  [default: io]\n");
+  printf("  -r <radio type>  [default: hackrf]\n");
   printf("    Type of radio to use.\n");
   printf("    Supported types:\n");
   printf("      - hackrf: HackRF SDR\n");
