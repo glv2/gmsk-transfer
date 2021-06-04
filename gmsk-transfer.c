@@ -586,6 +586,11 @@ int main(int argc, char **argv)
       {
         radio_type = HACKRF;
       }
+      else
+      {
+        fprintf(stderr, "Error: Unknown radio type");
+        return(-1);
+      }
       break;
 
     case 't':
