@@ -290,7 +290,7 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int baud_rate)
 
   if((frame_samples == NULL) || (samples == NULL))
   {
-    fprintf(stderr, "Error: Memory allocation failed");
+    fprintf(stderr, "Error: Memory allocation failed\n");
     return;
   }
 
@@ -410,7 +410,7 @@ void receive_frames(radio_t *radio, float sample_rate, unsigned int baud_rate)
 
   if((frame_samples == NULL) || (samples == NULL))
   {
-    fprintf(stderr, "Error: Memory allocation failed");
+    fprintf(stderr, "Error: Memory allocation failed\n");
     return;
   }
 
@@ -493,8 +493,8 @@ void usage()
   printf("  -r <radio type>  [default: io]\n");
   printf("    Type of radio to use.\n");
   printf("    Supported types:\n");
-  printf("      - io: standard input/output\n");
   printf("      - hackrf: HackRF SDR\n");
+  printf("      - io: standard input/output\n");
   printf("  -s <sample rate>  [default: 8000000 S/s]\n");
   printf("    Sample rate to use.\n");
   printf("  -t\n");
@@ -527,7 +527,7 @@ int main(int argc, char **argv)
   int opt;
   float sample_rate = 8000000;
   float baud_rate = 9600;
-  radio_type_t radio_type = IO;
+  radio_type_t radio_type = HACKRF;
   radio_t radio;
   unsigned int emit = 0;
   unsigned int gain = 0;
@@ -588,7 +588,7 @@ int main(int argc, char **argv)
       }
       else
       {
-        fprintf(stderr, "Error: Unknown radio type");
+        fprintf(stderr, "Error: Unknown radio type: '%s'\n", optarg);
         return(-1);
       }
       break;
@@ -691,7 +691,7 @@ int main(int argc, char **argv)
     break;
 
   default:
-    fprintf(stderr, "Error: Unknown radio type");
+    fprintf(stderr, "Error: Unknown radio type\n");
     return(-1);
   }
 
