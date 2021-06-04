@@ -463,6 +463,10 @@ void signal_handler(int signum)
   {
     fprintf(stderr, "\nStopping (signal %d)\n", signum);
   }
+  else
+  {
+    fprintf(stderr, "\n");
+  }
   stop = 1;
   fclose(stdin);
 }
