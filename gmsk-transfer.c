@@ -88,21 +88,10 @@ void apply_gain(float complex *samples, unsigned int samples_size, float gain)
   }
 }
 
-/* void cu8_to_cf32(unsigned char *sample_cu8, float complex *sample_cf32) */
-/* { */
-/*   *sample_cf32 = ((sample_cu8[0] - 127) + I * (sample_cu8[1] - 127)) / 128.0; */
-/* } */
-
 void cs8_to_cf32(char *sample_cs8, float complex *sample_cf32)
 {
   *sample_cf32 = (sample_cs8[0] + I * sample_cs8[1]) / 128.0;
 }
-
-/* void cf32_to_cu8(float complex sample_cf32, unsigned char *sample_cu8) */
-/* { */
-/*   sample_cu8[0] = (unsigned char) ((crealf(sample_cf32) * 128.0) + 127); */
-/*   sample_cu8[1] = (unsigned char) ((cimagf(sample_cf32) * 128.0) + 127); */
-/* } */
 
 void cf32_to_cs8(float complex sample_cf32, char *sample_cs8)
 {
@@ -289,8 +278,8 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int baud_rate)
                                                          LIQUID_IIRDES_BANDPASS,
                                                          LIQUID_IIRDES_SOS,
                                                          1,
-                                                         cutoff_frequency,
-                                                         center_frequency,
+                                                         fabsf(cutoff_frequency),
+                                                         fabsf(center_frequency),
                                                          1,
                                                          60);
   nco_crcf oscillator = nco_crcf_create(LIQUID_NCO);
