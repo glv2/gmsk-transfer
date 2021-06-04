@@ -476,7 +476,7 @@ void usage()
   printf("Options:\n");
   printf("  -b <baud rate>  [default: 9600 b/s]\n");
   printf("    Baud rate of the GMSK transmission.\n");
-  printf("  -c <ppm>  [default: 0, can be negative]\n");
+  printf("  -c <ppm>  [default: 0.0, can be negative]\n");
   printf("    Correction for the radio clock.\n");
   printf("  -d <filename>\n");
   printf("    Dump a copy of the samples sent to or received from\n");
@@ -532,7 +532,7 @@ int main(int argc, char **argv)
   unsigned int emit = 0;
   unsigned int gain = 0;
   int offset = 0;
-  int ppm = 0; // 11;
+  float ppm = 0; // 11;
 
   radio.frequency = 434000000;
 
@@ -545,7 +545,7 @@ int main(int argc, char **argv)
       break;
 
     case 'c':
-      ppm = strtol(optarg, NULL, 10);
+      ppm = strtof(optarg, NULL);
       break;
 
     case 'd':
