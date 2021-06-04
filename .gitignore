@@ -12,4 +12,7 @@ install-sh
 Makefile
 Makefile.in
 missing
+test.sh.*
+test-driver
+test-suite.log
 /*.o
