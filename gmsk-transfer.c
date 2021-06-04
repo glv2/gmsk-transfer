@@ -69,7 +69,7 @@ typedef struct
 
 FILE *file = NULL;
 unsigned char stop = 0;
-unsigned char verbose = 1;
+unsigned char verbose = 0;
 
 FILE *dump = NULL;
 
