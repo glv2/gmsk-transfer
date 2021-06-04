@@ -95,8 +95,8 @@ void cs8_to_cf32(char *sample_cs8, float complex *sample_cf32)
 
 void cf32_to_cs8(float complex sample_cf32, char *sample_cs8)
 {
-  sample_cs8[0] = (char) (crealf(sample_cf32) * 128.0);
-  sample_cs8[1] = (char) (cimagf(sample_cf32) * 128.0);
+  sample_cs8[0] = crealf(sample_cf32 * 128.0);
+  sample_cs8[1] = cimagf(sample_cf32 * 128.0);
 }
 
 unsigned int read_data(unsigned char *payload, unsigned int payload_size)
