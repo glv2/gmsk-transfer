@@ -568,7 +568,7 @@ int main(int argc, char **argv)
   unsigned int emit = 0;
   unsigned int gain = 0;
   int offset = 0;
-  float ppm = 0; // 11;
+  float ppm = 0;
   crc_scheme crc = LIQUID_CRC_32;
   fec_scheme inner_fec = LIQUID_FEC_HAMMING128;
   fec_scheme outer_fec = LIQUID_FEC_NONE;
