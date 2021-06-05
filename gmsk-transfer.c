@@ -259,7 +259,7 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int baud_rate,
   unsigned int delay = (unsigned int) ceilf(msresamp_crcf_get_delay(resampler));
   unsigned int header_size = 8;
   unsigned char header[header_size];
-  unsigned int payload_size = 40;
+  unsigned int payload_size = 120;
   unsigned char payload[payload_size];
   unsigned int n;
   unsigned int frame_samples_size = (baud_rate * SAMPLES_PER_SYMBOL) / 20; /* 50 ms */
