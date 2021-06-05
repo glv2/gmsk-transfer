@@ -31,10 +31,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #define TAU (2 * M_PI)
 #define SAMPLES_PER_SYMBOL 2
-#define CRC LIQUID_CRC_32
-#define FEC0 LIQUID_FEC_HAMMING74
-//#define FEC1 LIQUID_FEC_REP3
-#define FEC1 LIQUID_FEC_NONE
 
 #define HACKRF_CHECK(funcall) \
 { \
@@ -110,9 +106,7 @@ void write_data(unsigned char *payload, unsigned int payload_size)
   fwrite(payload, 1, payload_size, file);
 }
 
-void send_to_radio(radio_t *radio,
-                   float complex *samples,
-                   unsigned int samples_size)
+void send_to_radio(radio_t *radio, float complex *samples, unsigned int samples_size)
 {
   unsigned int size;
   unsigned int i;
@@ -160,8 +154,7 @@ void send_to_radio(radio_t *radio,
   }
 }
 
-unsigned int receive_from_radio(radio_t *radio,
-                                float complex *samples,
+unsigned int receive_from_radio(radio_t *radio, float complex *samples,
                                 unsigned int samples_size)
 {
   unsigned int size = 0;
@@ -257,7 +250,8 @@ int hackrf_sample_block_received(hackrf_transfer *transfer)
   return(0);
 }
 
-void send_frames(radio_t *radio, float sample_rate, unsigned int baud_rate)
+void send_frames(radio_t *radio, float sample_rate, unsigned int baud_rate,
+                 crc_scheme crc, fec_scheme inner_fec, fec_scheme outer_fec)
 {
   gmskframegen frame_generator = gmskframegen_create();
   float resampling_ratio = sample_rate / (baud_rate * SAMPLES_PER_SYMBOL);
@@ -270,7 +264,7 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int baud_rate)
   unsigned int n;
   unsigned int frame_samples_size = (baud_rate * SAMPLES_PER_SYMBOL) / 20; /* 50 ms */
   int frame_complete;
-  unsigned int samples_size = (unsigned int) ceilf((frame_samples_size + delay) * resampling_ratio);
+  unsigned int samples_size = ceilf((frame_samples_size + delay) * resampling_ratio);
   float frequency_offset = (float) radio->frequency - radio->center_frequency;
   float center_frequency = frequency_offset / sample_rate;
   float cutoff_frequency = (frequency_offset + (baud_rate * 2)) / sample_rate;
@@ -311,7 +305,7 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int baud_rate)
     {
       break;
     }
-    gmskframegen_assemble(frame_generator, header, payload, n, CRC, FEC0, FEC1);
+    gmskframegen_assemble(frame_generator, header, payload, n, crc, inner_fec, outer_fec);
     frame_complete = 0;
     n = 0;
     while(!frame_complete)
@@ -371,13 +365,9 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int baud_rate)
   gmskframegen_destroy(frame_generator);
 }
 
-int frame_received(unsigned char *header,
-                   int header_valid,
-                   unsigned char *payload,
-                   unsigned int payload_size,
-                   int payload_valid,
-                   framesyncstats_s stats,
-                   void *user_data)
+int frame_received(unsigned char *header, int header_valid,
+                   unsigned char *payload, unsigned int payload_size,
+                   int payload_valid, framesyncstats_s stats, void *user_data)
 {
   if(verbose)
   {
@@ -487,6 +477,8 @@ void usage()
   printf("  -d <filename>\n");
   printf("    Dump a copy of the samples sent to or received from\n");
   printf("    the radio (after filtering).\n");
+  printf("  -e <fec,fec>  [default: h128,none]\n");
+  printf("    Inner and outer forward error correction codes to use.\n");
   printf("  -f <frequency>  [default: 434000000 Hz]\n");
   printf("    Frequency of the GMSK transmission.\n");
   printf("  -g <gain>  [default: 0]\n");
@@ -526,6 +518,30 @@ void usage()
   printf("standard input in 'receive' mode, and standard output in\n");
   printf("'transmit' mode. The samples must be in 'float complex' format\n");
   printf("(32 bits for the real part, 32 bits for the imaginary part).\n");
+  printf("\n");
+  printf("Supported forward error correction codes:\n");
+  liquid_print_fec_schemes();
+}
+
+int get_fec_schemes(char *str, fec_scheme *inner_fec, fec_scheme *outer_fec)
+{
+  unsigned int size = strlen(str);
+  char spec[size + 1];
+  char *separation;
+
+  strcpy(spec, str);
+  if((separation = strchr(spec, ',')) == NULL)
+  {
+    return(-1);
+  }
+  *separation = '\0';
+  *inner_fec = liquid_getopt_str2fec(spec);
+  *outer_fec = liquid_getopt_str2fec(separation + 1);
+  if((*inner_fec == LIQUID_FEC_UNKNOWN) || (*outer_fec == LIQUID_FEC_UNKNOWN))
+  {
+    return(-1);
+  }
+  return(0);
 }
 
 int main(int argc, char **argv)
@@ -539,10 +555,13 @@ int main(int argc, char **argv)
   unsigned int gain = 0;
   int offset = 0;
   float ppm = 0; // 11;
+  crc_scheme crc = LIQUID_CRC_32;
+  fec_scheme inner_fec = LIQUID_FEC_HAMMING128;
+  fec_scheme outer_fec = LIQUID_FEC_NONE;
 
   radio.frequency = 434000000;
 
-  while((opt = getopt(argc, argv, "b:c:d:f:g:ho:r:s:tv")) != -1)
+  while((opt = getopt(argc, argv, "b:c:d:e:f:g:ho:r:s:tv")) != -1)
   {
     switch(opt)
     {
@@ -559,6 +578,14 @@ int main(int argc, char **argv)
       if(dump == NULL)
       {
         fprintf(stderr, "Error: Failed to open '%s'\n", optarg);
+        return(-1);
+      }
+      break;
+
+    case 'e':
+      if(get_fec_schemes(optarg, &inner_fec, &outer_fec) != 0)
+      {
+        fprintf(stderr, "Error: Unknown FEC schemes: '%s'\n", optarg);
         return(-1);
       }
       break;
@@ -657,7 +684,7 @@ int main(int argc, char **argv)
     radio.type = IO;
     if(emit)
     {
-      send_frames(&radio, sample_rate, baud_rate);
+      send_frames(&radio, sample_rate, baud_rate, crc, inner_fec, outer_fec);
     }
     else
     {
@@ -679,7 +706,7 @@ int main(int argc, char **argv)
     {
       HACKRF_CHECK(hackrf_set_txvga_gain(radio.device.hackrf, gain));
       HACKRF_CHECK(hackrf_start_tx(radio.device.hackrf, hackrf_sample_block_requested, (void *) &radio));
-      send_frames(&radio, sample_rate, baud_rate);
+      send_frames(&radio, sample_rate, baud_rate, crc, inner_fec, outer_fec);
       HACKRF_CHECK(hackrf_stop_tx(radio.device.hackrf));
     }
     else
