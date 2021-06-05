@@ -333,14 +333,16 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int baud_rate)
     }
   }
 
+  /* Send some dummy samples to get the remaining output samples (because of
+   * resampler and filter delays) */
   for(n = 0; n < frame_samples_size; n++)
   {
-    samples[n] = 0;
+    frame_samples[n] = 0;
   }
-  msresamp_crcf_execute(resampler, samples, frame_samples_size, samples, &n);
+  msresamp_crcf_execute(resampler, frame_samples, frame_samples_size, samples, &n);
   if(frequency_offset != 0)
   {
-    nco_crcf_mix_block_down(oscillator, samples, samples, n);
+    nco_crcf_mix_block_up(oscillator, samples, samples, n);
   }
   iirfilt_crcf_execute_block(filter, samples, n, samples);
   send_to_radio(radio, samples, n);
