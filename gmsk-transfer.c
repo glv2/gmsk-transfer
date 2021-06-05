@@ -355,6 +355,7 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int baud_rate,
         usleep(1);
       }
     }
+    usleep(50000);
   }
 
   free(samples);
