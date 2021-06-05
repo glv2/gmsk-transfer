@@ -478,7 +478,7 @@ void usage()
   printf("  -d <filename>\n");
   printf("    Dump a copy of the samples sent to or received from\n");
   printf("    the radio (after filtering).\n");
-  printf("  -e <fec,fec>  [default: h128,none]\n");
+  printf("  -e <fec[,fec]>  [default: h128,none]\n");
   printf("    Inner and outer forward error correction codes to use.\n");
   printf("  -f <frequency>  [default: 434000000 Hz]\n");
   printf("    Frequency of the GMSK transmission.\n");
@@ -531,17 +531,30 @@ int get_fec_schemes(char *str, fec_scheme *inner_fec, fec_scheme *outer_fec)
   char *separation;
 
   strcpy(spec, str);
-  if((separation = strchr(spec, ',')) == NULL)
+  if((separation = strchr(spec, ',')) != NULL)
   {
-    return(-1);
+    *separation = '\0';
   }
-  *separation = '\0';
+
   *inner_fec = liquid_getopt_str2fec(spec);
-  *outer_fec = liquid_getopt_str2fec(separation + 1);
-  if((*inner_fec == LIQUID_FEC_UNKNOWN) || (*outer_fec == LIQUID_FEC_UNKNOWN))
+  if(*inner_fec == LIQUID_FEC_UNKNOWN)
   {
     return(-1);
   }
+
+  if(separation != NULL)
+  {
+    *outer_fec = liquid_getopt_str2fec(separation + 1);
+    if(*outer_fec == LIQUID_FEC_UNKNOWN)
+    {
+      return(-1);
+    }
+  }
+  else
+  {
+    *outer_fec = LIQUID_FEC_NONE;
+  }
+
   return(0);
 }
 

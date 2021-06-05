@@ -14,7 +14,7 @@ AC_CHECK_FUNCS([malloc free])
 AC_CHECK_FUNCS([printf fprintf])
 AC_CHECK_FUNCS([fopen fclose])
 AC_CHECK_FUNCS([strtof strtol strtoul])
-AC_CHECK_FUNCS([bzero memcpy strcasecmp])
+AC_CHECK_FUNCS([bzero memcpy strcasecmp strchr])
 AC_CHECK_FUNCS([getopt])
 AC_CHECK_FUNCS([signal])
 
