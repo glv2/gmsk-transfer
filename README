@@ -28,11 +28,8 @@ Options:
   -o <offset>  [default: 0 Hz, can be negative]
     Set the central frequency of the transceiver 'offset' Hz
     lower than the signal frequency to send or receive.
-  -r <radio type>  [default: hackrf]
-    Type of radio to use.
-    Supported types:
-      - hackrf: HackRF SDR
-      - io: standard input/output
+  -r <radio type>  [default: io]
+    Radio to use.
   -s <sample rate>  [default: 8000000 S/s]
     Sample rate to use.
   -t
@@ -56,21 +53,27 @@ and the samples are sent to the radio.
 
 Instead of a real radio transceiver, the 'io' radio type uses
 standard input in 'receive' mode, and standard output in
-'transmit' mode. The samples must be in 'float complex' format
+'transmit' mode. The samples must be in 'complex float' format
 (32 bits for the real part, 32 bits for the imaginary part).
 
 
 ## Compilation
 
 gmsk-transfer requires the following dependencies:
-  - libhackrf (https://github.com/mossmann/hackrf)
   - libliquid (https://github.com/jgaeddert/liquid-dsp)
+  - libSoapySDR (https://github.com/pothosware/SoapySDR)
 
 It can be compiled with the usual:
 
     ./autogen.sh
     ./configure
     make
+
+
+## Supported radios
+
+gmsk-transfer uses the SoapySDR API, therefore if your radio is supported by
+SoapySDR and you have the right driver installed, it should work.
 
 
 ## Supported FEC codes

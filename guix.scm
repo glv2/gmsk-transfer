@@ -14,8 +14,8 @@
      `(("autoconf" ,autoconf)
        ("automake" ,automake)))
     (inputs
-     `(("hackrf" ,hackrf)
-       ("liquid-dsp" ,liquid-dsp)))
+     `(("liquid-dsp" ,liquid-dsp)
+       ("soapysdr" ,soapysdr)))
     (synopsis "Program to transfer data by radio")
     (description
      "@code{gmsk-transfer} is a command-line program to send or receive data by
