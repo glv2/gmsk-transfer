@@ -407,7 +407,7 @@ void usage()
   printf("    lower than the signal frequency to send or receive.\n");
   printf("  -r <radio>  [default: io]\n");
   printf("    Radio to use.\n");
-  printf("  -s <sample rate>  [default: 8000000 S/s]\n");
+  printf("  -s <sample rate>  [default: 2000000 S/s]\n");
   printf("    Sample rate to use.\n");
   printf("  -t\n");
   printf("    Use transmit mode.\n");
@@ -487,7 +487,7 @@ int get_fec_schemes(char *str, fec_scheme *inner_fec, fec_scheme *outer_fec)
 int main(int argc, char **argv)
 {
   int opt;
-  float sample_rate = 8000000;
+  float sample_rate = 2000000;
   float baud_rate = 9600;
   radio_t radio;
   unsigned int emit = 0;
