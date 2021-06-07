@@ -38,8 +38,6 @@ Options:
     Print debug messages:
       - H: corrupted header
       - P: corrupted payload
-      - O: overrun
-      - U: underrun
 
 By default the program is in 'receive' mode.
 Use the '-t' option to use the 'transmit' mode.

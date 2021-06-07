@@ -95,11 +95,14 @@ void write_data(unsigned char *payload, unsigned int payload_size)
   fwrite(payload, 1, payload_size, file);
 }
 
-void send_to_radio(radio_t *radio, complex float *samples, unsigned int samples_size)
+void send_to_radio(radio_t *radio, complex float *samples,
+                   unsigned int samples_size, int last)
 {
-  unsigned int size;
   unsigned int n;
+  unsigned int size;
   int flags = 0;
+  size_t mask = 0;
+  long long int timestamp = 0;
   int r;
   const void *buffers[1];
 
@@ -116,24 +119,60 @@ void send_to_radio(radio_t *radio, complex float *samples, unsigned int samples_
 
   case SOAPYSDR:
     n = 0;
-    while(n < samples_size)
+    while((n < samples_size) && (!stop))
     {
-      size = samples_size - n;
       buffers[0] = &samples[n];
-      r = SoapySDRDevice_writeStream(radio->device.soapysdr, radio->stream, buffers, size, &flags, 0, 10000);
+      size = samples_size - n;
+      r = SoapySDRDevice_writeStream(radio->device.soapysdr,
+                                     radio->stream,
+                                     buffers,
+                                     size,
+                                     &flags,
+                                     0,
+                                     10000);
       if(r > 0)
       {
         n += r;
       }
-      else if(stop)
+    }
+    if(last)
+    {
+      /* Complete the remaining buffer to ensure that SoapySDR will process it */
+      size = SoapySDRDevice_getStreamMTU(radio->device.soapysdr, radio->stream);
+      memset(samples, 0, samples_size * sizeof(complex float));
+      while((size > 0) && (!stop))
       {
-        break;
+        n = (samples_size < size) ? samples_size : size;
+        r = SoapySDRDevice_writeStream(radio->device.soapysdr,
+                                       radio->stream,
+                                       buffers,
+                                       n,
+                                       &flags,
+                                       0,
+                                       10000);
+        if(r > 0)
+        {
+          size -= r;
+        }
       }
-      else if((r == SOAPY_SDR_UNDERFLOW) && verbose)
+      flags = SOAPY_SDR_END_BURST;
+      do
       {
-        fprintf(stderr, "U");
-        fflush(stderr);
+        if(stop)
+        {
+          break;
+        }
+        r = SoapySDRDevice_readStreamStatus(radio->device.soapysdr,
+                                            radio->stream,
+                                            &mask,
+                                            &flags,
+                                            &timestamp,
+                                            10000);
       }
+      while((r != SOAPY_SDR_UNDERFLOW) && (!stop));
+
+      /* Give enough time to the hardware to send the last samples */
+      usleep(1000000);
     }
     break;
   }
@@ -142,32 +181,35 @@ void send_to_radio(radio_t *radio, complex float *samples, unsigned int samples_
 unsigned int receive_from_radio(radio_t *radio, complex float *samples,
                                 unsigned int samples_size)
 {
-  unsigned int size = 0;
+  unsigned int n = 0;
   complex float *buffer_samples;
   int flags;
   long long int timestamp;
   int r;
+  void *buffers[1];
 
   switch(radio->type)
   {
   case IO:
-    size = fread(samples, sizeof(complex float), samples_size, stdin);
+    n = fread(samples, sizeof(complex float), samples_size, stdin);
     break;
 
   case SOAPYSDR:
-    r = SoapySDRDevice_readStream(radio->device.soapysdr, radio->stream, (void *) &samples, samples_size, &flags, &timestamp, 10000);
+    buffers[0] = samples;
+    r = SoapySDRDevice_readStream(radio->device.soapysdr,
+                                  radio->stream,
+                                  buffers,
+                                  samples_size,
+                                  &flags,
+                                  &timestamp,
+                                  10000);
     if(r >= 0)
     {
-      size = r;
-    }
-    else if((r == SOAPY_SDR_OVERFLOW) && verbose)
-    {
-      fprintf(stderr, "O");
-      fflush(stderr);
+      n = r;
     }
     break;
   }
-  return(size);
+  return(n);
 }
 
 void send_frames(radio_t *radio, float sample_rate, unsigned int baud_rate,
@@ -183,8 +225,8 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int baud_rate,
   unsigned char payload[payload_size];
   unsigned int n;
   unsigned int frame_samples_size = (baud_rate * SAMPLES_PER_SYMBOL) / 20; /* 50 ms */
-  int frame_complete;
   unsigned int samples_size = ceilf((frame_samples_size + delay) * resampling_ratio);
+  int frame_complete;
   float frequency_offset = (float) radio->frequency - radio->center_frequency;
   float center_frequency = frequency_offset / sample_rate;
   float cutoff_frequency = (frequency_offset + (baud_rate * 2)) / sample_rate;
@@ -214,12 +256,8 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int baud_rate,
   gmskframegen_set_header_len(frame_generator, header_size);
   memcpy(header, "GMSKXFER", 8);
 
-  while(1)
+  while(!stop)
   {
-    if(stop)
-    {
-      break;
-    }
     n = read_data(payload, payload_size);
     if(n == 0)
     {
@@ -241,7 +279,7 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int baud_rate,
           nco_crcf_mix_block_up(oscillator, samples, samples, n);
         }
         iirfilt_crcf_execute_block(filter, samples, n, samples);
-        send_to_radio(radio, samples, n);
+        send_to_radio(radio, samples, n, 0);
         n = 0;
       }
     }
@@ -259,13 +297,7 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int baud_rate,
     nco_crcf_mix_block_up(oscillator, samples, samples, n);
   }
   iirfilt_crcf_execute_block(filter, samples, n, samples);
-  send_to_radio(radio, samples, n);
-
-  if(radio->type == SOAPYSDR)
-  {
-    /* Give the radio some time to send all the samples */
-    usleep(50000);
-  }
+  send_to_radio(radio, samples, n, 1);
 
   free(samples);
   free(frame_samples);
@@ -321,13 +353,8 @@ void receive_frames(radio_t *radio, float sample_rate, unsigned int baud_rate)
   nco_crcf_set_phase(oscillator, 0);
   nco_crcf_set_frequency(oscillator, TAU * (frequency_offset / sample_rate));
 
-  while(1)
+  while(!stop)
   {
-    if(stop)
-    {
-      break;
-    }
-
     n = receive_from_radio(radio, samples, samples_size);
     if((n == 0) && (radio->type == IO))
     {
@@ -415,8 +442,6 @@ void usage()
   printf("    Print debug messages:\n");
   printf("      - H: corrupted header\n");
   printf("      - P: corrupted payload\n");
-  printf("      - O: overrun\n");
-  printf("      - U: underrun\n");
   printf("\n");
   printf("By default the program is in 'receive' mode.\n");
   printf("Use the '-t' option to use the 'transmit' mode.\n");
@@ -498,6 +523,7 @@ int main(int argc, char **argv)
   fec_scheme inner_fec = LIQUID_FEC_HAMMING128;
   fec_scheme outer_fec = LIQUID_FEC_NONE;
 
+  memset(&radio, 0, sizeof(radio));
   radio.type = IO;
   radio.frequency = 434000000;
 
@@ -636,10 +662,25 @@ int main(int argc, char **argv)
   case SOAPYSDR:
     if(emit)
     {
-      SOAPYSDR_CHECK(SoapySDRDevice_setSampleRate(radio.device.soapysdr, SOAPY_SDR_TX, 0, sample_rate));
-      SOAPYSDR_CHECK(SoapySDRDevice_setFrequency(radio.device.soapysdr, SOAPY_SDR_TX, 0, radio.center_frequency, NULL));
-      SOAPYSDR_CHECK(SoapySDRDevice_setGain(radio.device.soapysdr, SOAPY_SDR_TX, 0, gain));
-      radio.stream = SoapySDRDevice_setupStream(radio.device.soapysdr, SOAPY_SDR_TX, SOAPY_SDR_CF32, NULL, 0, NULL);
+      SOAPYSDR_CHECK(SoapySDRDevice_setSampleRate(radio.device.soapysdr,
+                                                  SOAPY_SDR_TX,
+                                                  0,
+                                                  sample_rate));
+      SOAPYSDR_CHECK(SoapySDRDevice_setFrequency(radio.device.soapysdr,
+                                                 SOAPY_SDR_TX,
+                                                 0,
+                                                 radio.center_frequency,
+                                                 NULL));
+      SOAPYSDR_CHECK(SoapySDRDevice_setGain(radio.device.soapysdr,
+                                            SOAPY_SDR_TX,
+                                            0,
+                                            gain));
+      radio.stream = SoapySDRDevice_setupStream(radio.device.soapysdr,
+                                                SOAPY_SDR_TX,
+                                                SOAPY_SDR_CF32,
+                                                NULL,
+                                                0,
+                                                NULL);
       if(radio.stream == NULL)
       {
         fprintf(stderr, "Error: %s\n", SoapySDRDevice_lastError());
@@ -651,10 +692,25 @@ int main(int argc, char **argv)
     }
     else
     {
-      SOAPYSDR_CHECK(SoapySDRDevice_setSampleRate(radio.device.soapysdr, SOAPY_SDR_RX, 0, sample_rate));
-      SOAPYSDR_CHECK(SoapySDRDevice_setFrequency(radio.device.soapysdr, SOAPY_SDR_RX, 0, radio.center_frequency, NULL));
-      SOAPYSDR_CHECK(SoapySDRDevice_setGain(radio.device.soapysdr, SOAPY_SDR_RX, 0, gain));
-      radio.stream = SoapySDRDevice_setupStream(radio.device.soapysdr, SOAPY_SDR_RX, SOAPY_SDR_CF32, NULL, 0, NULL);
+      SOAPYSDR_CHECK(SoapySDRDevice_setSampleRate(radio.device.soapysdr,
+                                                  SOAPY_SDR_RX,
+                                                  0,
+                                                  sample_rate));
+      SOAPYSDR_CHECK(SoapySDRDevice_setFrequency(radio.device.soapysdr,
+                                                 SOAPY_SDR_RX,
+                                                 0,
+                                                 radio.center_frequency,
+                                                 NULL));
+      SOAPYSDR_CHECK(SoapySDRDevice_setGain(radio.device.soapysdr,
+                                            SOAPY_SDR_RX,
+                                            0,
+                                            gain));
+      radio.stream = SoapySDRDevice_setupStream(radio.device.soapysdr,
+                                                SOAPY_SDR_RX,
+                                                SOAPY_SDR_CF32,
+                                                NULL,
+                                                0,
+                                                NULL);
       if(radio.stream == NULL)
       {
         fprintf(stderr, "Error: %s\n", SoapySDRDevice_lastError());
