@@ -10,27 +10,27 @@ the GMSK modulation.
 gmsk-transfer [options] [filename]
 
 Options:
-  -b <baud rate>  [default: 9600 b/s]
+  -b <baud rate>  (default: 9600 b/s)
     Baud rate of the GMSK transmission.
-  -c <ppm>  [default: 0.0, can be negative]
+  -c <ppm>  (default: 0.0, can be negative)
     Correction for the radio clock.
   -d <filename>
     Dump a copy of the samples sent to or received from
     the radio (after filtering).
-  -e <fec[,fec]>  [default: h128,none]
+  -e <fec[,fec]>  (default: h128,none)
     Inner and outer forward error correction codes to use.
-  -f <frequency>  [default: 434000000 Hz]
+  -f <frequency>  (default: 434000000 Hz)
     Frequency of the GMSK transmission.
-  -g <gain>  [default: 0]
+  -g <gain>  (default: 0)
     Gain of the radio transceiver.
   -h
     This help.
-  -o <offset>  [default: 0 Hz, can be negative]
+  -o <offset>  (default: 0 Hz, can be negative)
     Set the central frequency of the transceiver 'offset' Hz
     lower than the signal frequency to send or receive.
-  -r <radio type>  [default: io]
+  -r <radio type>  (default: io)
     Radio to use.
-  -s <sample rate>  [default: 2000000 S/s]
+  -s <sample rate>  (default: 2000000 S/s)
     Sample rate to use.
   -t
     Use transmit mode.

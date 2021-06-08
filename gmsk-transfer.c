@@ -414,27 +414,27 @@ void usage()
   printf("Usage: gmsk-transfer [options] [filename]\n");
   printf("\n");
   printf("Options:\n");
-  printf("  -b <baud rate>  [default: 9600 b/s]\n");
+  printf("  -b <baud rate>  (default: 9600 b/s)\n");
   printf("    Baud rate of the GMSK transmission.\n");
-  printf("  -c <ppm>  [default: 0.0, can be negative]\n");
+  printf("  -c <ppm>  (default: 0.0, can be negative)\n");
   printf("    Correction for the radio clock.\n");
   printf("  -d <filename>\n");
   printf("    Dump a copy of the samples sent to or received from\n");
   printf("    the radio (after filtering).\n");
-  printf("  -e <fec[,fec]>  [default: h128,none]\n");
+  printf("  -e <fec[,fec]>  (default: h128,none)\n");
   printf("    Inner and outer forward error correction codes to use.\n");
-  printf("  -f <frequency>  [default: 434000000 Hz]\n");
+  printf("  -f <frequency>  (default: 434000000 Hz)\n");
   printf("    Frequency of the GMSK transmission.\n");
-  printf("  -g <gain>  [default: 0]\n");
+  printf("  -g <gain>  (default: 0)\n");
   printf("    Gain of the radio transceiver.\n");
   printf("  -h\n");
   printf("    This help.\n");
-  printf("  -o <offset>  [default: 0 Hz, can be negative]\n");
+  printf("  -o <offset>  (default: 0 Hz, can be negative)\n");
   printf("    Set the central frequency of the transceiver 'offset' Hz\n");
   printf("    lower than the signal frequency to send or receive.\n");
-  printf("  -r <radio>  [default: io]\n");
+  printf("  -r <radio>  (default: io)\n");
   printf("    Radio to use.\n");
-  printf("  -s <sample rate>  [default: 2000000 S/s]\n");
+  printf("  -s <sample rate>  (default: 2000000 S/s)\n");
   printf("    Sample rate to use.\n");
   printf("  -t\n");
   printf("    Use transmit mode.\n");
@@ -459,13 +459,20 @@ void usage()
   printf("(32 bits for the real part, 32 bits for the imaginary part).\n");
   printf("\n");
   printf("Available radios (via SoapySDR):\n");
-  for(i = 0; i < size; i++)
+  if(size == 0)
   {
-    for(j = 0; j < devices[i].size; j++)
+    printf("  No radio detected\n");
+  }
+  else
+  {
+    for(i = 0; i < size; i++)
     {
-      if(strcasecmp(devices[i].keys[j], "driver") == 0)
+      for(j = 0; j < devices[i].size; j++)
       {
-        printf("  - driver=%s\n", devices[i].vals[j]);
+        if(strcasecmp(devices[i].keys[j], "driver") == 0)
+        {
+          printf("  - driver=%s\n", devices[i].vals[j]);
+        }
       }
     }
   }
