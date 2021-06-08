@@ -407,6 +407,8 @@ void usage()
   size_t size;
   unsigned int i;
   unsigned int j;
+  char *driver;
+  char *serial;
   SoapySDRKwargs *devices = SoapySDRDevice_enumerate(NULL, &size);
 
   printf("gmsk-transfer version 1.0.0\n");
@@ -467,13 +469,24 @@ void usage()
   {
     for(i = 0; i < size; i++)
     {
+      driver = NULL;
+      serial = NULL;
       for(j = 0; j < devices[i].size; j++)
       {
         if(strcasecmp(devices[i].keys[j], "driver") == 0)
         {
-          printf("  - driver=%s\n", devices[i].vals[j]);
+          driver = devices[i].vals[j];
+        }
+        else if(strcasecmp(devices[i].keys[j], "serial") == 0)
+        {
+          serial = devices[i].vals[j];
+          if(strlen(serial) > 8)
+          {
+            serial = &serial[strlen(serial) - 8];
+          }
         }
       }
+      printf("  - driver=%s,serial=%s\n", driver, serial);
     }
   }
   SoapySDRKwargsList_clear(devices, size);

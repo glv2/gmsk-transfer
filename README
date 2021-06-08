@@ -73,6 +73,9 @@ It can be compiled with the usual:
 gmsk-transfer uses the SoapySDR API, therefore if your radio is supported by
 SoapySDR and you have the right driver installed, it should work.
 
+When used with the '-h' option to print the help message, gmsk-transfer will
+also list the radios that it has detected.
+
 
 ## Supported FEC codes
 
@@ -86,7 +89,7 @@ These should always be available:
   - h74: Hamming(7,4)
   - h84: Hamming(8,4)
   - h128: Hamming(12,8)
-  - g2412: Golay(24,12))
+  - g2412: Golay(24,12)
   - secded2216: SEC-DEC(22,16)
   - secded3932: SEC-DEC(39,32)
   - secded7264: SEC-DEC(72,64)
