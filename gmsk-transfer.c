@@ -668,7 +668,10 @@ int main(int argc, char **argv)
   switch(radio.type)
   {
   case IO:
-    fprintf(stderr, "Info: Using IO pseudo-radio\n");
+    if(verbose)
+    {
+      fprintf(stderr, "Info: Using IO pseudo-radio\n");
+    }
     if(emit)
     {
       send_frames(&radio, sample_rate, baud_rate, crc, inner_fec, outer_fec);
