@@ -10,8 +10,8 @@ the GMSK modulation.
 gmsk-transfer [options] [filename]
 
 Options:
-  -b <baud rate>  (default: 9600 b/s)
-    Baud rate of the GMSK transmission.
+  -b <bit rate>  (default: 9600 b/s)
+    Bit rate of the GMSK transmission.
   -c <ppm>  (default: 0.0, can be negative)
     Correction for the radio clock.
   -d <filename>

@@ -213,11 +213,11 @@ unsigned int receive_from_radio(radio_t *radio, complex float *samples,
   return(n);
 }
 
-void send_frames(radio_t *radio, float sample_rate, unsigned int baud_rate,
+void send_frames(radio_t *radio, float sample_rate, unsigned int bit_rate,
                  crc_scheme crc, fec_scheme inner_fec, fec_scheme outer_fec)
 {
   gmskframegen frame_generator = gmskframegen_create();
-  float resampling_ratio = sample_rate / (baud_rate * SAMPLES_PER_SYMBOL);
+  float resampling_ratio = sample_rate / (bit_rate * SAMPLES_PER_SYMBOL);
   msresamp_crcf resampler = msresamp_crcf_create(resampling_ratio, 60);
   unsigned int delay = (unsigned int) ceilf(msresamp_crcf_get_delay(resampler));
   unsigned int header_size = 8;
@@ -225,12 +225,12 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int baud_rate,
   unsigned int payload_size = 120;
   unsigned char payload[payload_size];
   unsigned int n;
-  unsigned int frame_samples_size = (baud_rate * SAMPLES_PER_SYMBOL) / 20; /* 50 ms */
+  unsigned int frame_samples_size = (bit_rate * SAMPLES_PER_SYMBOL) / 20; /* 50 ms */
   unsigned int samples_size = ceilf((frame_samples_size + delay) * resampling_ratio);
   int frame_complete;
   float frequency_offset = (float) radio->frequency - radio->center_frequency;
   float center_frequency = frequency_offset / sample_rate;
-  float cutoff_frequency = (frequency_offset + baud_rate) / sample_rate;
+  float cutoff_frequency = (frequency_offset + bit_rate) / sample_rate;
   iirfilt_crcf filter = iirfilt_crcf_create_prototype(LIQUID_IIRDES_BUTTER,
                                                       (frequency_offset == 0) ?
                                                       LIQUID_IIRDES_LOWPASS :
@@ -329,19 +329,19 @@ int frame_received(unsigned char *header, int header_valid,
   return(0);
 }
 
-void receive_frames(radio_t *radio, float sample_rate, unsigned int baud_rate)
+void receive_frames(radio_t *radio, float sample_rate, unsigned int bit_rate)
 {
   gmskframesync frame_synchronizer = gmskframesync_create(frame_received, NULL);
-  float resampling_ratio = (baud_rate * SAMPLES_PER_SYMBOL) / sample_rate;
+  float resampling_ratio = (bit_rate * SAMPLES_PER_SYMBOL) / sample_rate;
   msresamp_crcf resampler = msresamp_crcf_create(resampling_ratio, 60);
   unsigned int delay = (unsigned int) ceilf(msresamp_crcf_get_delay(resampler));
   unsigned int n;
-  unsigned int frame_samples_size = (baud_rate * SAMPLES_PER_SYMBOL) / 20; /* 50 ms */
+  unsigned int frame_samples_size = (bit_rate * SAMPLES_PER_SYMBOL) / 20; /* 50 ms */
   unsigned int samples_size = (unsigned int) floorf(frame_samples_size / resampling_ratio) + delay;
   float frequency_offset = (float) radio->frequency - radio->center_frequency;
   nco_crcf oscillator = nco_crcf_create(LIQUID_NCO);
   float maximum_deviation = radio->center_frequency * 0.00005; /* 50 ppm */
-  float cutoff_frequency = (baud_rate + maximum_deviation) / sample_rate;
+  float cutoff_frequency = (bit_rate + maximum_deviation) / sample_rate;
   iirfilt_crcf low_pass = iirfilt_crcf_create_lowpass(2, cutoff_frequency);
   complex float *frame_samples = malloc((frame_samples_size + delay) * sizeof(complex float));
   complex float *samples = malloc(samples_size * sizeof(complex float));
@@ -418,8 +418,8 @@ void usage()
   printf("Usage: gmsk-transfer [options] [filename]\n");
   printf("\n");
   printf("Options:\n");
-  printf("  -b <baud rate>  (default: 9600 b/s)\n");
-  printf("    Baud rate of the GMSK transmission.\n");
+  printf("  -b <bit rate>  (default: 9600 b/s)\n");
+  printf("    Bit rate of the GMSK transmission.\n");
   printf("  -c <ppm>  (default: 0.0, can be negative)\n");
   printf("    Correction for the radio clock.\n");
   printf("  -d <filename>\n");
@@ -535,7 +535,7 @@ int main(int argc, char **argv)
 {
   int opt;
   float sample_rate = 2000000;
-  float baud_rate = 9600;
+  float bit_rate = 9600;
   radio_t radio;
   unsigned int emit = 0;
   unsigned int gain = 0;
@@ -554,7 +554,7 @@ int main(int argc, char **argv)
     switch(opt)
     {
     case 'b':
-      baud_rate = strtoul(optarg, NULL, 10);
+      bit_rate = strtoul(optarg, NULL, 10);
       break;
 
     case 'c':
@@ -676,11 +676,11 @@ int main(int argc, char **argv)
     }
     if(emit)
     {
-      send_frames(&radio, sample_rate, baud_rate, crc, inner_fec, outer_fec);
+      send_frames(&radio, sample_rate, bit_rate, crc, inner_fec, outer_fec);
     }
     else
     {
-      receive_frames(&radio, sample_rate, baud_rate);
+      receive_frames(&radio, sample_rate, bit_rate);
     }
     break;
 
@@ -713,7 +713,7 @@ int main(int argc, char **argv)
         return(-1);
       }
       SoapySDRDevice_activateStream(radio.device.soapysdr, radio.stream, 0, 0, 0);
-      send_frames(&radio, sample_rate, baud_rate, crc, inner_fec, outer_fec);
+      send_frames(&radio, sample_rate, bit_rate, crc, inner_fec, outer_fec);
     }
     else
     {
@@ -743,7 +743,7 @@ int main(int argc, char **argv)
         return(-1);
       }
       SoapySDRDevice_activateStream(radio.device.soapysdr, radio.stream, 0, 0, 0);
-      receive_frames(&radio, sample_rate, baud_rate);
+      receive_frames(&radio, sample_rate, bit_rate);
     }
     SoapySDRDevice_deactivateStream(radio.device.soapysdr, radio.stream, 0, 0);
     SoapySDRDevice_closeStream(radio.device.soapysdr, radio.stream);
