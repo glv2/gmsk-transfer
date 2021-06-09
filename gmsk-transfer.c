@@ -140,6 +140,7 @@ void send_to_radio(radio_t *radio, complex float *samples,
       /* Complete the remaining buffer to ensure that SoapySDR will process it */
       size = SoapySDRDevice_getStreamMTU(radio->device.soapysdr, radio->stream);
       memset(samples, 0, samples_size * sizeof(complex float));
+      buffers[0] = samples;
       while((size > 0) && (!stop))
       {
         n = (samples_size < size) ? samples_size : size;
