@@ -229,7 +229,7 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int baud_rate,
   int frame_complete;
   float frequency_offset = (float) radio->frequency - radio->center_frequency;
   float center_frequency = frequency_offset / sample_rate;
-  float cutoff_frequency = (frequency_offset + (baud_rate * 2)) / sample_rate;
+  float cutoff_frequency = (frequency_offset + baud_rate) / sample_rate;
   iirfilt_crcf filter = iirfilt_crcf_create_prototype(LIQUID_IIRDES_BUTTER,
                                                       (frequency_offset == 0) ?
                                                       LIQUID_IIRDES_LOWPASS :
