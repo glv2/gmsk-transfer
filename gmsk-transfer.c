@@ -339,7 +339,8 @@ void receive_frames(radio_t *radio, float sample_rate, unsigned int baud_rate)
   unsigned int samples_size = (unsigned int) floorf(frame_samples_size / resampling_ratio) + delay;
   float frequency_offset = (float) radio->frequency - radio->center_frequency;
   nco_crcf oscillator = nco_crcf_create(LIQUID_NCO);
-  float cutoff_frequency = (baud_rate * 2) / sample_rate;
+  float maximum_deviation = radio->center_frequency * 0.00005; /* 50 ppm */
+  float cutoff_frequency = (baud_rate + maximum_deviation) / sample_rate;
   iirfilt_crcf low_pass = iirfilt_crcf_create_lowpass(2, cutoff_frequency);
   complex float *frame_samples = malloc((frame_samples_size + delay) * sizeof(complex float));
   complex float *samples = malloc(samples_size * sizeof(complex float));
