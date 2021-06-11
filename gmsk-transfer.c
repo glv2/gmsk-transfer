@@ -436,7 +436,7 @@ void usage()
   printf("  -o <offset>  (default: 0 Hz, can be negative)\n");
   printf("    Set the central frequency of the transceiver 'offset' Hz\n");
   printf("    lower than the signal frequency to send or receive.\n");
-  printf("  -r <radio>  (default: io)\n");
+  printf("  -r <radio>  (default: \"\")\n");
   printf("    Radio to use.\n");
   printf("  -s <sample rate>  (default: 2000000 S/s)\n");
   printf("    Sample rate to use.\n");
@@ -544,9 +544,10 @@ int main(int argc, char **argv)
   crc_scheme crc = LIQUID_CRC_32;
   fec_scheme inner_fec = LIQUID_FEC_HAMMING128;
   fec_scheme outer_fec = LIQUID_FEC_NONE;
+  char *soapysdr_driver = "";
 
   memset(&radio, 0, sizeof(radio));
-  radio.type = IO;
+  radio.type = SOAPYSDR;
   radio.frequency = 434000000;
 
   while((opt = getopt(argc, argv, "b:c:d:e:f:g:ho:r:s:tv")) != -1)
@@ -606,12 +607,7 @@ int main(int argc, char **argv)
       else
       {
         radio.type = SOAPYSDR;
-        radio.device.soapysdr = SoapySDRDevice_makeStrArgs(optarg);
-        if(radio.device.soapysdr == NULL)
-        {
-          fprintf(stderr, "Error: %s\n", SoapySDRDevice_lastError());
-          return(-1);
-        }
+        soapysdr_driver = optarg;
       }
       break;
 
@@ -685,6 +681,12 @@ int main(int argc, char **argv)
     break;
 
   case SOAPYSDR:
+    radio.device.soapysdr = SoapySDRDevice_makeStrArgs(soapysdr_driver);
+    if(radio.device.soapysdr == NULL)
+    {
+      fprintf(stderr, "Error: %s\n", SoapySDRDevice_lastError());
+      return(-1);
+    }
     if(emit)
     {
       SOAPYSDR_CHECK(SoapySDRDevice_setSampleRate(radio.device.soapysdr,

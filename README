@@ -28,7 +28,7 @@ Options:
   -o <offset>  (default: 0 Hz, can be negative)
     Set the central frequency of the transceiver 'offset' Hz
     lower than the signal frequency to send or receive.
-  -r <radio type>  (default: io)
+  -r <radio type>  (default: "")
     Radio to use.
   -s <sample rate>  (default: 2000000 S/s)
     Sample rate to use.
