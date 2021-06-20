@@ -236,7 +236,7 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int bit_rate,
                                                       LIQUID_IIRDES_LOWPASS :
                                                       LIQUID_IIRDES_BANDPASS,
                                                       LIQUID_IIRDES_SOS,
-                                                      1,
+                                                      2,
                                                       fabsf(cutoff_frequency),
                                                       fabsf(center_frequency),
                                                       1,
