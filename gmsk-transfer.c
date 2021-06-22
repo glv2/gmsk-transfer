@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <complex.h>
+#include <fcntl.h>
 #include <liquid/liquid.h>
 #include <math.h>
 #include <pthread.h>
@@ -28,6 +29,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <unistd.h>
 
 #define TAU (2 * M_PI)
@@ -84,15 +86,31 @@ void apply_gain(complex float *samples, unsigned int samples_size, float gain)
   }
 }
 
-unsigned int read_data(unsigned char *payload, unsigned int payload_size)
+int read_data(unsigned char *payload, unsigned int payload_size)
 {
-  unsigned int n = fread(payload, 1, payload_size, file);
+  int n;
+
+  if(feof(file))
+  {
+    return(-1);
+  }
+
+  n = fread(payload, 1, payload_size, file);
+  if(n == 0)
+  {
+    usleep(1);
+  }
+
   return(n);
 }
 
 void write_data(unsigned char *payload, unsigned int payload_size)
 {
   fwrite(payload, 1, payload_size, file);
+  if(file == stdout)
+  {
+    fflush(file);
+  }
 }
 
 void send_to_radio(radio_t *radio, complex float *samples,
@@ -139,7 +157,7 @@ void send_to_radio(radio_t *radio, complex float *samples,
     {
       /* Complete the remaining buffer to ensure that SoapySDR will process it */
       size = SoapySDRDevice_getStreamMTU(radio->device.soapysdr, radio->stream);
-      memset(samples, 0, samples_size * sizeof(complex float));
+      bzero(samples, samples_size * sizeof(complex float));
       buffers[0] = samples;
       while((size > 0) && (!stop))
       {
@@ -224,6 +242,7 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int bit_rate,
   unsigned char header[header_size];
   unsigned int payload_size = 120;
   unsigned char payload[payload_size];
+  int r;
   unsigned int n;
   unsigned int frame_samples_size = (bit_rate * SAMPLES_PER_SYMBOL) / 20; /* 50 ms */
   unsigned int samples_size = ceilf((frame_samples_size + delay) * resampling_ratio);
@@ -259,29 +278,34 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int bit_rate,
 
   while(!stop)
   {
-    n = read_data(payload, payload_size);
-    if(n == 0)
+    r = read_data(payload, payload_size);
+    if(r < 0)
     {
       break;
     }
-    gmskframegen_assemble(frame_generator, header, payload, n, crc, inner_fec, outer_fec);
-    frame_complete = 0;
-    n = 0;
-    while(!frame_complete)
+    n = r;
+
+    if(n > 0)
     {
-      frame_complete = gmskframegen_write_samples(frame_generator, &frame_samples[n]);
-      n += SAMPLES_PER_SYMBOL;
-      if(frame_complete || (n + SAMPLES_PER_SYMBOL > frame_samples_size))
+      gmskframegen_assemble(frame_generator, header, payload, n, crc, inner_fec, outer_fec);
+      frame_complete = 0;
+      n = 0;
+      while(!frame_complete)
       {
-        apply_gain(frame_samples, n, 0.75);
-        msresamp_crcf_execute(resampler, frame_samples, n, samples, &n);
-        if(frequency_offset != 0)
+        frame_complete = gmskframegen_write_samples(frame_generator, &frame_samples[n]);
+        n += SAMPLES_PER_SYMBOL;
+        if(frame_complete || (n + SAMPLES_PER_SYMBOL > frame_samples_size))
         {
-          nco_crcf_mix_block_up(oscillator, samples, samples, n);
+          apply_gain(frame_samples, n, 0.75);
+          msresamp_crcf_execute(resampler, frame_samples, n, samples, &n);
+          if(frequency_offset != 0)
+          {
+            nco_crcf_mix_block_up(oscillator, samples, samples, n);
+          }
+          iirfilt_crcf_execute_block(filter, samples, n, samples);
+          send_to_radio(radio, samples, n, 0);
+          n = 0;
         }
-        iirfilt_crcf_execute_block(filter, samples, n, samples);
-        send_to_radio(radio, samples, n, 0);
-        n = 0;
       }
     }
   }
@@ -534,6 +558,7 @@ int get_fec_schemes(char *str, fec_scheme *inner_fec, fec_scheme *outer_fec)
 int main(int argc, char **argv)
 {
   int opt;
+  int flags;
   float sample_rate = 2000000;
   float bit_rate = 9600;
   radio_t radio;
@@ -546,7 +571,7 @@ int main(int argc, char **argv)
   fec_scheme outer_fec = LIQUID_FEC_NONE;
   char *soapysdr_driver = "";
 
-  memset(&radio, 0, sizeof(radio));
+  bzero(&radio, sizeof(radio));
   radio.type = SOAPYSDR;
   radio.frequency = 434000000;
 
@@ -645,6 +670,8 @@ int main(int argc, char **argv)
     if(emit)
     {
       file = stdin;
+      flags = fcntl(STDIN_FILENO, F_GETFL);
+      fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
     }
     else
     {

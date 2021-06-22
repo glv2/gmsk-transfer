@@ -7,19 +7,19 @@ AC_PROG_CC
 AC_PROG_INSTALL
 
 dnl Check for standard headers
-AC_CHECK_HEADERS([complex.h math.h signal.h stdio.h stdlib.h unistd.h])
+AC_CHECK_HEADERS([complex.h fcntl.h signal.h stdio.h stdlib.h string.h strings.h unistd.h])
 
 dnl Check for functions
-AC_CHECK_FUNCS([malloc free])
-AC_CHECK_FUNCS([printf fprintf])
-AC_CHECK_FUNCS([fopen fclose])
-AC_CHECK_FUNCS([strtof strtol strtoul])
-AC_CHECK_FUNCS([bzero memcpy strcasecmp strchr strcpy])
-AC_CHECK_FUNCS([getopt])
+AC_CHECK_FUNCS([fcntl])
 AC_CHECK_FUNCS([signal])
+AC_CHECK_FUNCS([fclose feof fflush fopen fprintf fread fwrite printf])
+AC_CHECK_FUNCS([exit free malloc strtof strtol strtoul])
+AC_CHECK_FUNCS([bzero memcpy strcasecmp strchr strcpy strlen])
+AC_CHECK_FUNCS([getopt usleep])
 
 dnl Check for libraries
-AC_CHECK_LIB(m, crealf, [], AC_MSG_ERROR([math library required]))
+AC_CHECK_HEADERS(math.h, [], AC_MSG_ERROR([math headers required]))
+AC_CHECK_LIB(m, ceilf, [], AC_MSG_ERROR([math library required]))
 
 AC_CHECK_HEADERS(pthread.h, [], AC_MSG_ERROR([POSIX threads header required]))
 AC_CHECK_LIB(pthread, pthread_mutex_init, [], AC_MSG_ERROR([POSIX threads library required]))
