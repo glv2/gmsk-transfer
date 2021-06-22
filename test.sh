@@ -38,9 +38,9 @@ function check()
 }
 
 check "Default parameters" ""
-check "Baud rate 1200" "-b 1200"
-check "Baud rate 38400" "-b 38400"
-check "Baud rate 400000" "-b 400000"
+check "Bit rate 1200" "-b 1200"
+check "Bit rate 38400" "-b 38400"
+check "Bit rate 400000" "-b 400000"
 check "Frequency offset 200000" "-o 200000"
 check "Frequency offset -123456" "-o -123456"
 check "Sample rate 4000000" "-s 4000000"
