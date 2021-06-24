@@ -34,6 +34,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #define TAU (2 * M_PI)
 #define SAMPLES_PER_SYMBOL 2
+#define BT 0.5
 
 #define SOAPYSDR_CHECK(funcall) \
 { \
@@ -249,7 +250,7 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int bit_rate,
   int frame_complete;
   float frequency_offset = (float) radio->frequency - radio->center_frequency;
   float center_frequency = frequency_offset / sample_rate;
-  float cutoff_frequency = (frequency_offset + bit_rate) / sample_rate;
+  float cutoff_frequency = center_frequency + (bit_rate * 0.5 * (1 + BT) / sample_rate);
   iirfilt_crcf filter = iirfilt_crcf_create_prototype(LIQUID_IIRDES_BUTTER,
                                                       (frequency_offset == 0) ?
                                                       LIQUID_IIRDES_LOWPASS :
@@ -382,7 +383,7 @@ void receive_frames(radio_t *radio, float sample_rate, unsigned int bit_rate)
   float frequency_offset = (float) radio->frequency - radio->center_frequency;
   nco_crcf oscillator = nco_crcf_create(LIQUID_NCO);
   float maximum_deviation = radio->center_frequency * 0.00005; /* 50 ppm */
-  float cutoff_frequency = (bit_rate + maximum_deviation) / sample_rate;
+  float cutoff_frequency = ((bit_rate * 0.5 * (1 + BT)) + maximum_deviation) / sample_rate;
   iirfilt_crcf low_pass = iirfilt_crcf_create_lowpass(2, cutoff_frequency);
   complex float *frame_samples = malloc((frame_samples_size + delay) * sizeof(complex float));
   complex float *samples = malloc(samples_size * sizeof(complex float));
