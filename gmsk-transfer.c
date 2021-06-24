@@ -382,9 +382,6 @@ void receive_frames(radio_t *radio, float sample_rate, unsigned int bit_rate)
   unsigned int samples_size = (unsigned int) floorf(frame_samples_size / resampling_ratio) + delay;
   float frequency_offset = (float) radio->frequency - radio->center_frequency;
   nco_crcf oscillator = nco_crcf_create(LIQUID_NCO);
-  float maximum_deviation = radio->center_frequency * 0.00005; /* 50 ppm */
-  float cutoff_frequency = ((bit_rate * 0.5 * (1 + BT)) + maximum_deviation) / sample_rate;
-  iirfilt_crcf low_pass = iirfilt_crcf_create_lowpass(2, cutoff_frequency);
   complex float *frame_samples = malloc((frame_samples_size + delay) * sizeof(complex float));
   complex float *samples = malloc(samples_size * sizeof(complex float));
 
@@ -408,7 +405,6 @@ void receive_frames(radio_t *radio, float sample_rate, unsigned int bit_rate)
     {
       nco_crcf_mix_block_down(oscillator, samples, samples, n);
     }
-    iirfilt_crcf_execute_block(low_pass, samples, n, samples);
     if(dump)
     {
       dump_samples(samples, n);
@@ -426,7 +422,6 @@ void receive_frames(radio_t *radio, float sample_rate, unsigned int bit_rate)
 
   free(samples);
   free(frame_samples);
-  iirfilt_crcf_destroy(low_pass);
   nco_crcf_destroy(oscillator);
   msresamp_crcf_destroy(resampler);
   gmskframesync_destroy(frame_synchronizer);
