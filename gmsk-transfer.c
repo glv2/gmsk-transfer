@@ -250,17 +250,6 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int bit_rate,
   int frame_complete;
   float frequency_offset = (float) radio->frequency - radio->center_frequency;
   float center_frequency = frequency_offset / sample_rate;
-  float cutoff_frequency = center_frequency + (bit_rate * 0.5 * (1 + BT) / sample_rate);
-  iirfilt_crcf filter = iirfilt_crcf_create_prototype(LIQUID_IIRDES_BUTTER,
-                                                      (frequency_offset == 0) ?
-                                                      LIQUID_IIRDES_LOWPASS :
-                                                      LIQUID_IIRDES_BANDPASS,
-                                                      LIQUID_IIRDES_SOS,
-                                                      2,
-                                                      fabsf(cutoff_frequency),
-                                                      fabsf(center_frequency),
-                                                      1,
-                                                      60);
   nco_crcf oscillator = nco_crcf_create(LIQUID_NCO);
   complex float *frame_samples = malloc(frame_samples_size * sizeof(complex float));
   complex float *samples = malloc(samples_size * sizeof(complex float));
@@ -303,7 +292,6 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int bit_rate,
           {
             nco_crcf_mix_block_up(oscillator, samples, samples, n);
           }
-          iirfilt_crcf_execute_block(filter, samples, n, samples);
           send_to_radio(radio, samples, n, 0);
           n = 0;
         }
@@ -323,7 +311,6 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int bit_rate,
       {
         nco_crcf_mix_block_up(oscillator, samples, samples, n);
       }
-      iirfilt_crcf_execute_block(filter, samples, n, samples);
       send_to_radio(radio, samples, n, 0);
     }
   }
@@ -339,13 +326,11 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int bit_rate,
   {
     nco_crcf_mix_block_up(oscillator, samples, samples, n);
   }
-  iirfilt_crcf_execute_block(filter, samples, n, samples);
   send_to_radio(radio, samples, n, 1);
 
   free(samples);
   free(frame_samples);
   nco_crcf_destroy(oscillator);
-  iirfilt_crcf_destroy(filter);
   msresamp_crcf_destroy(resampler);
   gmskframegen_destroy(frame_generator);
 }
