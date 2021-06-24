@@ -401,13 +401,13 @@ void receive_frames(radio_t *radio, float sample_rate, unsigned int bit_rate)
     {
       break;
     }
-    if(frequency_offset != 0)
-    {
-      nco_crcf_mix_block_down(oscillator, samples, samples, n);
-    }
     if(dump)
     {
       dump_samples(samples, n);
+    }
+    if(frequency_offset != 0)
+    {
+      nco_crcf_mix_block_down(oscillator, samples, samples, n);
     }
     msresamp_crcf_execute(resampler, samples, n, frame_samples, &n);
     gmskframesync_execute(frame_synchronizer, frame_samples, n);
@@ -461,7 +461,7 @@ void usage()
   printf("    Correction for the radio clock.\n");
   printf("  -d <filename>\n");
   printf("    Dump a copy of the samples sent to or received from\n");
-  printf("    the radio (after filtering).\n");
+  printf("    the radio.\n");
   printf("  -e <fec[,fec]>  (default: h128,none)\n");
   printf("    Inner and outer forward error correction codes to use.\n");
   printf("  -f <frequency>  (default: 434000000 Hz)\n");

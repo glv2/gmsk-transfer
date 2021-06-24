@@ -16,7 +16,7 @@ Options:
     Correction for the radio clock.
   -d <filename>
     Dump a copy of the samples sent to or received from
-    the radio (after filtering).
+    the radio.
   -e <fec[,fec]>  (default: h128,none)
     Inner and outer forward error correction codes to use.
   -f <frequency>  (default: 434000000 Hz)
