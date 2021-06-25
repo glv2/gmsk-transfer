@@ -47,6 +47,7 @@ check "Sample rate 4000000" "-s 4000000"
 check "Sample rate 10000000" "-s 10000000"
 check "FEC Hamming(7/4)" "-e h74"
 check "FEC Golay(24/12) and repeat(3)" "-e g2412,rep3"
+check "Id a1B2" "-i a1B2"
 
 rm -f ${MESSAGE} ${DECODED} ${SAMPLES}
 echo "All tests passed."

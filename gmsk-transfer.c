@@ -61,6 +61,7 @@ typedef struct
 {
   radio_type_t type;
   radio_device_t device;
+  unsigned char id[5];
   unsigned long int frequency;
   unsigned long int center_frequency;
   SoapySDRStream *stream;
@@ -286,7 +287,7 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int bit_rate,
   nco_crcf_set_frequency(oscillator, TAU * center_frequency);
 
   gmskframegen_set_header_len(frame_generator, header_size);
-  memcpy(header, "GMSK0000", 8);
+  memcpy(header, radio->id, 4);
   set_counter(header, counter);
 
   while(!stop)
@@ -354,31 +355,47 @@ int frame_received(unsigned char *header, int header_valid,
                    unsigned char *payload, unsigned int payload_size,
                    int payload_valid, framesyncstats_s stats, void *user_data)
 {
+  radio_t *radio = (radio_t *) user_data;
+  unsigned char id[5];
   unsigned int counter;
 
-  if(verbose)
+  memcpy(id, header, 4);
+  id[4] = '\0';
+  counter = get_counter(header);
+
+  if(!header_valid || !payload_valid)
   {
-    if(!header_valid || !payload_valid)
+    if(verbose)
     {
-      counter = get_counter(header);
       if(!header_valid)
       {
-        fprintf(stderr, "Frame %u: corrupted header\n", counter);
+        fprintf(stderr, "Frame %s/%u: corrupted header\n", id, counter);
       }
       if(!payload_valid)
       {
-        fprintf(stderr, "Frame %u: corrupted payload\n", counter);
+        fprintf(stderr, "Frame %s/%u: corrupted payload\n", id, counter);
       }
       fflush(stderr);
     }
   }
-  write_data(payload, payload_size);
+  if(memcmp(id, radio->id, 4) != 0)
+  {
+    if(verbose)
+    {
+      fprintf(stderr, "Frame %s/%u: ignored\n", id, counter);
+      fflush(stderr);
+    }
+  }
+  else
+  {
+    write_data(payload, payload_size);
+  }
   return(0);
 }
 
 void receive_frames(radio_t *radio, float sample_rate, unsigned int bit_rate)
 {
-  gmskframesync frame_synchronizer = gmskframesync_create(frame_received, NULL);
+  gmskframesync frame_synchronizer = gmskframesync_create(frame_received, radio);
   float resampling_ratio = (bit_rate * SAMPLES_PER_SYMBOL) / sample_rate;
   msresamp_crcf resampler = msresamp_crcf_create(resampling_ratio, 60);
   unsigned int delay = (unsigned int) ceilf(msresamp_crcf_get_delay(resampler));
@@ -475,6 +492,9 @@ void usage()
   printf("    Gain of the radio transceiver.\n");
   printf("  -h\n");
   printf("    This help.\n");
+  printf("  -i <id>  (default: \"\")\n");
+  printf("    Transfer id (at most 4 bytes). When receiving, the frames\n");
+  printf("    with a different id will be ignored.\n");
   printf("  -o <offset>  (default: 0 Hz, can be negative)\n");
   printf("    Set the central frequency of the transceiver 'offset' Hz\n");
   printf("    lower than the signal frequency to send or receive.\n");
@@ -591,7 +611,7 @@ int main(int argc, char **argv)
   radio.type = SOAPYSDR;
   radio.frequency = 434000000;
 
-  while((opt = getopt(argc, argv, "b:c:d:e:f:g:ho:r:s:tv")) != -1)
+  while((opt = getopt(argc, argv, "b:c:d:e:f:g:hi:o:r:s:tv")) != -1)
   {
     switch(opt)
     {
@@ -631,6 +651,18 @@ int main(int argc, char **argv)
     case 'h':
       usage();
       return(0);
+
+    case 'i':
+      if(strlen(optarg) <= 4)
+      {
+        strcpy(radio.id, optarg);
+      }
+      else
+      {
+        fprintf(stderr, "Error: Id must be at most 4 bytes long\n");
+        return(-1);
+      }
+      break;
 
     case 'o':
       offset = strtol(optarg, NULL, 10);

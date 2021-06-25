@@ -25,6 +25,9 @@ Options:
     Gain of the radio transceiver.
   -h
     This help.
+  -i <id>  (default: "")
+    Transfer id (at most 4 bytes). When receiving, the frames
+    with a different id will be ignored.
   -o <offset>  (default: 0 Hz, can be negative)
     Set the central frequency of the transceiver 'offset' Hz
     lower than the signal frequency to send or receive.
