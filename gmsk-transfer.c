@@ -294,7 +294,10 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int bit_rate,
         n += SAMPLES_PER_SYMBOL;
         if(frame_complete || (n + SAMPLES_PER_SYMBOL > frame_samples_size))
         {
-          liquid_vectorcf_mulscalar(frame_samples, n, 0.75, samples);
+          /* Reduce the amplitude of samples a little because the resampler
+           * may produce samples with an amplitude slightly greater than 1.0
+           * otherwise */
+          liquid_vectorcf_mulscalar(frame_samples, n, 0.9, frame_samples);
           msresamp_crcf_execute(resampler, frame_samples, n, samples, &n);
           if(frequency_offset != 0)
           {
