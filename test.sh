@@ -26,28 +26,46 @@ SAMPLES=$(mktemp -t samples.XXXXXX)
 
 echo "This is a test transmission using gmsk-transfer." > ${MESSAGE}
 
-function check()
+function check_ok()
 {
     NAME=$1
-    OPTIONS=$2
+    OPTIONS1=$2
+    OPTIONS2=$3
 
     echo "Test: ${NAME}"
-    ./gmsk-transfer -t -r io ${OPTIONS} ${MESSAGE} > ${SAMPLES}
-    ./gmsk-transfer -r io ${OPTIONS} ${DECODED} < ${SAMPLES}
-    diff -q ${MESSAGE} ${DECODED}
+    ./gmsk-transfer -t -r io ${OPTIONS1} ${MESSAGE} > ${SAMPLES}
+    ./gmsk-transfer -r io ${OPTIONS2} ${DECODED} < ${SAMPLES}
+    diff -q ${MESSAGE} ${DECODED} > /dev/null
 }
 
-check "Default parameters" ""
-check "Bit rate 1200" "-b 1200"
-check "Bit rate 38400" "-b 38400"
-check "Bit rate 400000" "-b 400000"
-check "Frequency offset 200000" "-o 200000"
-check "Frequency offset -123456" "-o -123456"
-check "Sample rate 4000000" "-s 4000000"
-check "Sample rate 10000000" "-s 10000000"
-check "FEC Hamming(7/4)" "-e h74"
-check "FEC Golay(24/12) and repeat(3)" "-e g2412,rep3"
-check "Id a1B2" "-i a1B2"
+function check_nok()
+{
+    NAME=$1
+    OPTIONS1=$2
+    OPTIONS2=$3
+
+    echo "Test: ${NAME}"
+    ./gmsk-transfer -t -r io ${OPTIONS1} ${MESSAGE} > ${SAMPLES}
+    ./gmsk-transfer -r io ${OPTIONS2} ${DECODED} < ${SAMPLES}
+    ! diff -q ${MESSAGE} ${DECODED} > /dev/null
+}
+
+check_ok "Default parameters" "" ""
+check_ok "Bit rate 1200" "-b 1200" "-b 1200"
+check_ok "Bit rate 38400" "-b 38400" "-b 38400"
+check_ok "Bit rate 400000" "-b 400000" "-b 400000"
+check_nok "Wrong bit rate 9600 19200" "-b 9600" "-b 19200"
+check_ok "Frequency offset 200000" "-o 200000" "-o 200000"
+check_ok "Frequency offset -123456" "-o -123456" "-o -123456"
+check_nok "Wrong frequency offset 200000 250000" "-o 200000" "-o 250000"
+check_ok "Sample rate 4000000" "-s 4000000" "-s 4000000"
+check_ok "Sample rate 10000000" "-s 10000000" "-s 10000000"
+check_nok "Wrong sample rate 1000000 2000000" "-s 1000000" "-s 2000000"
+check_ok "FEC Hamming(7/4)" "-e h74" "-e h74"
+check_ok "FEC Golay(24/12) and repeat(3)" "-e g2412,rep3" "-e g2412,rep3"
+check_ok "Wrong FEC Hamming(7/4) Hammig(12/8)" "-e h74" "-e h128"
+check_ok "Id a1B2" "-i a1B2" "-i a1B2"
+check_nok "Wrong id ABCD ABC" "-i ABCD" "-i ABC"
 
 rm -f ${MESSAGE} ${DECODED} ${SAMPLES}
 echo "All tests passed."
