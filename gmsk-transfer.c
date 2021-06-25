@@ -77,16 +77,6 @@ void dump_samples(complex float *samples, unsigned int samples_size)
   fwrite(samples, sizeof(complex float), samples_size, dump);
 }
 
-void apply_gain(complex float *samples, unsigned int samples_size, float gain)
-{
-  unsigned int i;
-
-  for(i = 0; i < samples_size; i++)
-  {
-    samples[i] *= gain;
-  }
-}
-
 int read_data(unsigned char *payload, unsigned int payload_size)
 {
   int n;
@@ -232,6 +222,24 @@ unsigned int receive_from_radio(radio_t *radio, complex float *samples,
   return(n);
 }
 
+void send_dummy_samples(radio_t *radio, msresamp_crcf resampler, nco_crcf oscillator,
+                        complex float *frame_samples, unsigned int frame_samples_size,
+                        complex float *samples, float frequency_offset, int last)
+{
+  unsigned int n;
+
+  for(n = 0; n < frame_samples_size; n++)
+  {
+    frame_samples[n] = 0;
+  }
+  msresamp_crcf_execute(resampler, frame_samples, frame_samples_size, samples, &n);
+  if(frequency_offset != 0)
+  {
+    nco_crcf_mix_block_up(oscillator, samples, samples, n);
+  }
+  send_to_radio(radio, samples, n, last);
+}
+
 void send_frames(radio_t *radio, float sample_rate, unsigned int bit_rate,
                  crc_scheme crc, fec_scheme inner_fec, fec_scheme outer_fec)
 {
@@ -286,7 +294,7 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int bit_rate,
         n += SAMPLES_PER_SYMBOL;
         if(frame_complete || (n + SAMPLES_PER_SYMBOL > frame_samples_size))
         {
-          apply_gain(frame_samples, n, 0.75);
+          liquid_vectorcf_mulscalar(frame_samples, n, 0.75, samples);
           msresamp_crcf_execute(resampler, frame_samples, n, samples, &n);
           if(frequency_offset != 0)
           {
@@ -302,31 +310,15 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int bit_rate,
       /* Underrun when reading from stdin. Send some dummy samples to get the
        * remaining output samples for the end of current frame (because of
        * resampler and filter delays) and send them */
-      for(n = 0; n < frame_samples_size; n++)
-      {
-        frame_samples[n] = 0;
-      }
-      msresamp_crcf_execute(resampler, frame_samples, frame_samples_size, samples, &n);
-      if(frequency_offset != 0)
-      {
-        nco_crcf_mix_block_up(oscillator, samples, samples, n);
-      }
-      send_to_radio(radio, samples, n, 0);
+      send_dummy_samples(radio, resampler, oscillator, frame_samples, frame_samples_size,
+                         samples, frequency_offset, 0);
     }
   }
 
   /* Send some dummy samples to get the remaining output samples (because of
    * resampler and filter delays) */
-  for(n = 0; n < frame_samples_size; n++)
-  {
-    frame_samples[n] = 0;
-  }
-  msresamp_crcf_execute(resampler, frame_samples, frame_samples_size, samples, &n);
-  if(frequency_offset != 0)
-  {
-    nco_crcf_mix_block_up(oscillator, samples, samples, n);
-  }
-  send_to_radio(radio, samples, n, 1);
+  send_dummy_samples(radio, resampler, oscillator, frame_samples, frame_samples_size,
+                     samples, frequency_offset, 1);
 
   free(samples);
   free(frame_samples);
