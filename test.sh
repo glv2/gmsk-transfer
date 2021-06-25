@@ -63,7 +63,7 @@ check_ok "Sample rate 10000000" "-s 10000000" "-s 10000000"
 check_nok "Wrong sample rate 1000000 2000000" "-s 1000000" "-s 2000000"
 check_ok "FEC Hamming(7/4)" "-e h74" "-e h74"
 check_ok "FEC Golay(24/12) and repeat(3)" "-e g2412,rep3" "-e g2412,rep3"
-check_ok "Wrong FEC Hamming(7/4) Hammig(12/8)" "-e h74" "-e h128"
+check_ok "Wrong FEC Hamming(7/4) Hamming(12/8)" "-e h74" "-e h128"
 check_ok "Id a1B2" "-i a1B2" "-i a1B2"
 check_nok "Wrong id ABCD ABC" "-i ABCD" "-i ABC"
 
