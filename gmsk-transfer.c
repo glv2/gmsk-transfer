@@ -222,6 +222,19 @@ unsigned int receive_from_radio(radio_t *radio, complex float *samples,
   return(n);
 }
 
+void set_counter(unsigned char *header, unsigned int counter)
+{
+  header[4] = (counter >> 24) & 255;
+  header[5] = (counter >> 16) & 255;
+  header[6] = (counter >> 8) & 255;
+  header[7] = counter & 255;
+}
+
+unsigned int get_counter(unsigned char *header)
+{
+  return((header[4] << 24) | (header[5] << 16) | (header[6] << 8) | header[7]);
+}
+
 void send_dummy_samples(radio_t *radio, msresamp_crcf resampler, nco_crcf oscillator,
                         complex float *frame_samples, unsigned int frame_samples_size,
                         complex float *samples, float frequency_offset, int last)
@@ -259,6 +272,7 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int bit_rate,
   float frequency_offset = (float) radio->frequency - radio->center_frequency;
   float center_frequency = frequency_offset / sample_rate;
   nco_crcf oscillator = nco_crcf_create(LIQUID_NCO);
+  unsigned int counter = 0;
   complex float *frame_samples = malloc(frame_samples_size * sizeof(complex float));
   complex float *samples = malloc(samples_size * sizeof(complex float));
 
@@ -272,7 +286,8 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int bit_rate,
   nco_crcf_set_frequency(oscillator, TAU * center_frequency);
 
   gmskframegen_set_header_len(frame_generator, header_size);
-  memcpy(header, "GMSKXFER", 8);
+  memcpy(header, "GMSK0000", 8);
+  set_counter(header, counter);
 
   while(!stop)
   {
@@ -305,6 +320,11 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int bit_rate,
           }
           send_to_radio(radio, samples, n, 0);
           n = 0;
+          if(frame_complete)
+          {
+            counter++;
+            set_counter(header, counter);
+          }
         }
       }
     }
@@ -334,16 +354,21 @@ int frame_received(unsigned char *header, int header_valid,
                    unsigned char *payload, unsigned int payload_size,
                    int payload_valid, framesyncstats_s stats, void *user_data)
 {
+  unsigned int counter;
+
   if(verbose)
   {
-    if(!header_valid)
+    if(!header_valid || !payload_valid)
     {
-      fprintf(stderr, "H");
-      fflush(stderr);
-    }
-    if(!payload_valid)
-    {
-      fprintf(stderr, "P");
+      counter = get_counter(header);
+      if(!header_valid)
+      {
+        fprintf(stderr, "Frame %u: corrupted header\n", counter);
+      }
+      if(!payload_valid)
+      {
+        fprintf(stderr, "Frame %u: corrupted payload\n", counter);
+      }
       fflush(stderr);
     }
   }
@@ -460,9 +485,7 @@ void usage()
   printf("  -t\n");
   printf("    Use transmit mode.\n");
   printf("  -v\n");
-  printf("    Print debug messages:\n");
-  printf("      - H: corrupted header\n");
-  printf("      - P: corrupted payload\n");
+  printf("    Print debug messages.\n");
   printf("\n");
   printf("By default the program is in 'receive' mode.\n");
   printf("Use the '-t' option to use the 'transmit' mode.\n");
