@@ -193,7 +193,6 @@ unsigned int receive_from_radio(radio_t *radio, complex float *samples,
                                 unsigned int samples_size)
 {
   unsigned int n = 0;
-  complex float *buffer_samples;
   int flags;
   long long int timestamp;
   int r;
