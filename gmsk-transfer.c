@@ -654,11 +654,6 @@ int main(int argc, char **argv)
 
     case 'g':
       gain = strtoul(optarg, NULL, 10);
-      if(gain == 0)
-      {
-        fprintf(stderr, "Error: Invalid gain: '%s'\n", optarg);
-        return(-1);
-      }
       break;
 
     case 'h':
