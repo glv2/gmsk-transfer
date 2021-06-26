@@ -596,7 +596,7 @@ int main(int argc, char **argv)
   int opt;
   int flags;
   float sample_rate = 2000000;
-  float bit_rate = 9600;
+  unsigned int bit_rate = 9600;
   radio_t radio;
   unsigned int emit = 0;
   unsigned int gain = 0;
@@ -617,6 +617,11 @@ int main(int argc, char **argv)
     {
     case 'b':
       bit_rate = strtoul(optarg, NULL, 10);
+      if(bit_rate == 0)
+      {
+        fprintf(stderr, "Error: Invalid bit rate: '%s'\n", optarg);
+        return(-1);
+      }
       break;
 
     case 'c':
@@ -642,10 +647,20 @@ int main(int argc, char **argv)
 
     case 'f':
       radio.frequency = strtoul(optarg, NULL, 10);
+      if(radio.frequency == 0)
+      {
+        fprintf(stderr, "Error: Invalid frequency: '%s'\n", optarg);
+        return(-1);
+      }
       break;
 
     case 'g':
       gain = strtoul(optarg, NULL, 10);
+      if(gain == 0)
+      {
+        fprintf(stderr, "Error: Invalid gain: '%s'\n", optarg);
+        return(-1);
+      }
       break;
 
     case 'h':
@@ -670,6 +685,11 @@ int main(int argc, char **argv)
 
     case 's':
       sample_rate = strtoul(optarg, NULL, 10);
+      if(sample_rate == 0)
+      {
+        fprintf(stderr, "Error: Invalid sample rate: '%s'\n", optarg);
+        return(-1);
+      }
       break;
 
     case 'r':
