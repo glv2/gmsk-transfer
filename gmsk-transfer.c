@@ -369,11 +369,11 @@ int frame_received(unsigned char *header, int header_valid,
     {
       if(!header_valid)
       {
-        fprintf(stderr, "Frame %s/%u: corrupted header\n", id, counter);
+        fprintf(stderr, "Frame %u for '%s': corrupted header\n", counter, id);
       }
       if(!payload_valid)
       {
-        fprintf(stderr, "Frame %s/%u: corrupted payload\n", id, counter);
+        fprintf(stderr, "Frame %u for '%s': corrupted payload\n", counter, id);
       }
       fflush(stderr);
     }
@@ -382,7 +382,7 @@ int frame_received(unsigned char *header, int header_valid,
   {
     if(verbose)
     {
-      fprintf(stderr, "Frame %s/%u: ignored\n", id, counter);
+      fprintf(stderr, "Frame %u for '%s': ignored\n", counter, id);
       fflush(stderr);
     }
   }
