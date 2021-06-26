@@ -61,7 +61,7 @@ typedef struct
 {
   radio_type_t type;
   radio_device_t device;
-  unsigned char id[5];
+  char id[5];
   unsigned long int frequency;
   unsigned long int center_frequency;
   SoapySDRStream *stream;
@@ -355,7 +355,7 @@ int frame_received(unsigned char *header, int header_valid,
                    int payload_valid, framesyncstats_s stats, void *user_data)
 {
   radio_t *radio = (radio_t *) user_data;
-  unsigned char id[5];
+  char id[5];
   unsigned int counter;
 
   memcpy(id, header, 4);
