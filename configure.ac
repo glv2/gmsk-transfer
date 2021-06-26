@@ -21,9 +21,6 @@ dnl Check for libraries
 AC_CHECK_HEADERS(math.h, [], AC_MSG_ERROR([math headers required]))
 AC_CHECK_LIB(m, ceilf, [], AC_MSG_ERROR([math library required]))
 
-AC_CHECK_HEADERS(pthread.h, [], AC_MSG_ERROR([POSIX threads header required]))
-AC_CHECK_LIB(pthread, pthread_mutex_init, [], AC_MSG_ERROR([POSIX threads library required]))
-
 AC_CHECK_HEADERS(liquid/liquid.h, [], AC_MSG_ERROR([liquid-dsp header required]))
 AC_CHECK_LIB(liquid, gmskframegen_create, [], AC_MSG_ERROR([liquid-dsp library required]))
 
