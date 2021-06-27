@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # This file is part of gmsk-transfer, a program to send or receive data
-# by radio using the GMSK modulation.
+# by software defined radio using the GMSK modulation.
 #
 # Copyright 2021 Guillaume LE VAILLANT
 #

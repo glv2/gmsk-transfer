@@ -1,6 +1,6 @@
 /*
 This file is part of gmsk-transfer, a program to send or receive data
-by radio using the GMSK modulation.
+by software defined radio using the GMSK modulation.
 
 Copyright 2021 Guillaume LE VAILLANT
 
@@ -470,7 +470,7 @@ void usage()
   char *serial;
   SoapySDRKwargs *devices = SoapySDRDevice_enumerate(NULL, &size);
 
-  printf("gmsk-transfer version 1.0.0\n");
+  printf("gmsk-transfer version 1.0.1\n");
   printf("\n");
   printf("Usage: gmsk-transfer [options] [filename]\n");
   printf("\n");

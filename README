@@ -1,8 +1,8 @@
 gmsk-transfer
 =============
 
-gmsk-transfer is a command-line program to send or receive data by radio using
-the GMSK modulation.
+gmsk-transfer is a command-line program to send or receive data by software
+defined radio using the GMSK modulation.
 
 
 ## Usage
