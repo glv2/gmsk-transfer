@@ -2,7 +2,7 @@ gmsk-transfer
 =============
 
 gmsk-transfer is a command-line program to send or receive data by software
-defined radio using the GMSK modulation.
+defined radio using the GMSK modulation (with a BT parameter of 0.5).
 
 
 ## Usage
