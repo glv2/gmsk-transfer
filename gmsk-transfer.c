@@ -56,37 +56,47 @@ typedef union
   SoapySDRDevice *soapysdr;
 } radio_device_t;
 
+typedef union
+{
+  SoapySDRStream *soapysdr;
+} radio_stream_t;
+
 typedef struct
 {
-  radio_type_t type;
-  radio_device_t device;
-  char id[5];
+  radio_type_t radio_type;
+  radio_device_t radio_device;
+  radio_stream_t radio_stream;
+  unsigned char emit;
+  FILE *file;
+  unsigned long int sample_rate;
+  unsigned int bit_rate;
   unsigned long int frequency;
-  unsigned long int center_frequency;
-  SoapySDRStream *stream;
-} radio_t;
+  long int frequency_offset;
+  crc_scheme crc;
+  fec_scheme inner_fec;
+  fec_scheme outer_fec;
+  char id[5];
+  FILE *dump;
+} transfer_t;
 
-FILE *file = NULL;
 unsigned char stop = 0;
 unsigned char verbose = 0;
 
-FILE *dump = NULL;
-
-void dump_samples(complex float *samples, unsigned int samples_size)
+void dump_samples(transfer_t *transfer, complex float *samples, unsigned int samples_size)
 {
-  fwrite(samples, sizeof(complex float), samples_size, dump);
+  fwrite(samples, sizeof(complex float), samples_size, transfer->dump);
 }
 
-int read_data(unsigned char *payload, unsigned int payload_size)
+int read_data(transfer_t *transfer, unsigned char *payload, unsigned int payload_size)
 {
   int n;
 
-  if(feof(file))
+  if(feof(transfer->file))
   {
     return(-1);
   }
 
-  n = fread(payload, 1, payload_size, file);
+  n = fread(payload, 1, payload_size, transfer->file);
   if(n == 0)
   {
     usleep(1);
@@ -95,17 +105,19 @@ int read_data(unsigned char *payload, unsigned int payload_size)
   return(n);
 }
 
-void write_data(unsigned char *payload, unsigned int payload_size)
+void write_data(transfer_t *transfer, unsigned char *payload, unsigned int payload_size)
 {
-  fwrite(payload, 1, payload_size, file);
-  if(file == stdout)
+  fwrite(payload, 1, payload_size, transfer->file);
+  if(transfer->file == stdout)
   {
-    fflush(file);
+    fflush(transfer->file);
   }
 }
 
-void send_to_radio(radio_t *radio, complex float *samples,
-                   unsigned int samples_size, int last)
+void send_to_radio(transfer_t *transfer,
+                   complex float *samples,
+                   unsigned int samples_size,
+                   int last)
 {
   unsigned int n;
   unsigned int size;
@@ -115,12 +127,12 @@ void send_to_radio(radio_t *radio, complex float *samples,
   int r;
   const void *buffers[1];
 
-  if(dump)
+  if(transfer->dump)
   {
-    dump_samples(samples, samples_size);
+    dump_samples(transfer, samples, samples_size);
   }
 
-  switch(radio->type)
+  switch(transfer->radio_type)
   {
   case IO:
     fwrite(samples, sizeof(complex float), samples_size, stdout);
@@ -132,8 +144,8 @@ void send_to_radio(radio_t *radio, complex float *samples,
     {
       buffers[0] = &samples[n];
       size = samples_size - n;
-      r = SoapySDRDevice_writeStream(radio->device.soapysdr,
-                                     radio->stream,
+      r = SoapySDRDevice_writeStream(transfer->radio_device.soapysdr,
+                                     transfer->radio_stream.soapysdr,
                                      buffers,
                                      size,
                                      &flags,
@@ -147,14 +159,15 @@ void send_to_radio(radio_t *radio, complex float *samples,
     if(last)
     {
       /* Complete the remaining buffer to ensure that SoapySDR will process it */
-      size = SoapySDRDevice_getStreamMTU(radio->device.soapysdr, radio->stream);
+      size = SoapySDRDevice_getStreamMTU(transfer->radio_device.soapysdr,
+                                         transfer->radio_stream.soapysdr);
       bzero(samples, samples_size * sizeof(complex float));
       buffers[0] = samples;
       while((size > 0) && (!stop))
       {
         n = (samples_size < size) ? samples_size : size;
-        r = SoapySDRDevice_writeStream(radio->device.soapysdr,
-                                       radio->stream,
+        r = SoapySDRDevice_writeStream(transfer->radio_device.soapysdr,
+                                       transfer->radio_stream.soapysdr,
                                        buffers,
                                        n,
                                        &flags,
@@ -168,12 +181,8 @@ void send_to_radio(radio_t *radio, complex float *samples,
       flags = SOAPY_SDR_END_BURST;
       do
       {
-        if(stop)
-        {
-          break;
-        }
-        r = SoapySDRDevice_readStreamStatus(radio->device.soapysdr,
-                                            radio->stream,
+        r = SoapySDRDevice_readStreamStatus(transfer->radio_device.soapysdr,
+                                            transfer->radio_stream.soapysdr,
                                             &mask,
                                             &flags,
                                             &timestamp,
@@ -188,7 +197,8 @@ void send_to_radio(radio_t *radio, complex float *samples,
   }
 }
 
-unsigned int receive_from_radio(radio_t *radio, complex float *samples,
+unsigned int receive_from_radio(transfer_t *transfer,
+                                complex float *samples,
                                 unsigned int samples_size)
 {
   unsigned int n = 0;
@@ -197,7 +207,7 @@ unsigned int receive_from_radio(radio_t *radio, complex float *samples,
   int r;
   void *buffers[1];
 
-  switch(radio->type)
+  switch(transfer->radio_type)
   {
   case IO:
     n = fread(samples, sizeof(complex float), samples_size, stdin);
@@ -205,8 +215,8 @@ unsigned int receive_from_radio(radio_t *radio, complex float *samples,
 
   case SOAPYSDR:
     buffers[0] = samples;
-    r = SoapySDRDevice_readStream(radio->device.soapysdr,
-                                  radio->stream,
+    r = SoapySDRDevice_readStream(transfer->radio_device.soapysdr,
+                                  transfer->radio_stream.soapysdr,
                                   buffers,
                                   samples_size,
                                   &flags,
@@ -234,9 +244,13 @@ unsigned int get_counter(unsigned char *header)
   return((header[4] << 24) | (header[5] << 16) | (header[6] << 8) | header[7]);
 }
 
-void send_dummy_samples(radio_t *radio, msresamp_crcf resampler, nco_crcf oscillator,
-                        complex float *frame_samples, unsigned int frame_samples_size,
-                        complex float *samples, float frequency_offset, int last)
+void send_dummy_samples(transfer_t *transfer,
+                        msresamp_crcf resampler,
+                        nco_crcf oscillator,
+                        complex float *frame_samples,
+                        unsigned int frame_samples_size,
+                        complex float *samples,
+                        int last)
 {
   unsigned int n;
 
@@ -245,18 +259,18 @@ void send_dummy_samples(radio_t *radio, msresamp_crcf resampler, nco_crcf oscill
     frame_samples[n] = 0;
   }
   msresamp_crcf_execute(resampler, frame_samples, frame_samples_size, samples, &n);
-  if(frequency_offset != 0)
+  if(transfer->frequency_offset != 0)
   {
     nco_crcf_mix_block_up(oscillator, samples, samples, n);
   }
-  send_to_radio(radio, samples, n, last);
+  send_to_radio(transfer, samples, n, last);
 }
 
-void send_frames(radio_t *radio, float sample_rate, unsigned int bit_rate,
-                 crc_scheme crc, fec_scheme inner_fec, fec_scheme outer_fec)
+void send_frames(transfer_t *transfer)
 {
   gmskframegen frame_generator = gmskframegen_create();
-  float resampling_ratio = sample_rate / (bit_rate * SAMPLES_PER_SYMBOL);
+  float resampling_ratio = (float) transfer->sample_rate / (transfer->bit_rate *
+                                                            SAMPLES_PER_SYMBOL);
   msresamp_crcf resampler = msresamp_crcf_create(resampling_ratio, 60);
   unsigned int delay = (unsigned int) ceilf(msresamp_crcf_get_delay(resampler));
   unsigned int header_size = 8;
@@ -266,11 +280,11 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int bit_rate,
   int r;
   unsigned int n;
   unsigned int i;
-  unsigned int frame_samples_size = (bit_rate * SAMPLES_PER_SYMBOL) / 20; /* 50 ms */
+  /* Process data by blocks of 50 ms */
+  unsigned int frame_samples_size = (transfer->bit_rate * SAMPLES_PER_SYMBOL) / 20;
   unsigned int samples_size = ceilf((frame_samples_size + delay) * resampling_ratio);
   int frame_complete;
-  float frequency_offset = (float) radio->frequency - radio->center_frequency;
-  float center_frequency = frequency_offset / sample_rate;
+  float center_frequency = (float) transfer->frequency_offset / transfer->sample_rate;
   nco_crcf oscillator = nco_crcf_create(LIQUID_NCO);
   float maximum_amplitude = 1;
   unsigned int counter = 0;
@@ -287,12 +301,12 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int bit_rate,
   nco_crcf_set_frequency(oscillator, TAU * center_frequency);
 
   gmskframegen_set_header_len(frame_generator, header_size);
-  memcpy(header, radio->id, 4);
+  memcpy(header, transfer->id, 4);
   set_counter(header, counter);
 
   while(!stop)
   {
-    r = read_data(payload, payload_size);
+    r = read_data(transfer, payload, payload_size);
     if(r < 0)
     {
       break;
@@ -301,7 +315,13 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int bit_rate,
 
     if(n > 0)
     {
-      gmskframegen_assemble(frame_generator, header, payload, n, crc, inner_fec, outer_fec);
+      gmskframegen_assemble(frame_generator,
+                            header,
+                            payload,
+                            n,
+                            transfer->crc,
+                            transfer->inner_fec,
+                            transfer->outer_fec);
       frame_complete = 0;
       n = 0;
       while(!frame_complete)
@@ -320,13 +340,16 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int bit_rate,
               maximum_amplitude = cabsf(frame_samples[i]);
             }
           }
-          liquid_vectorcf_mulscalar(frame_samples, n, 0.9 / maximum_amplitude, frame_samples);
+          liquid_vectorcf_mulscalar(frame_samples,
+                                    n,
+                                    0.9 / maximum_amplitude,
+                                    frame_samples);
           msresamp_crcf_execute(resampler, frame_samples, n, samples, &n);
-          if(frequency_offset != 0)
+          if(transfer->frequency_offset != 0)
           {
             nco_crcf_mix_block_up(oscillator, samples, samples, n);
           }
-          send_to_radio(radio, samples, n, 0);
+          send_to_radio(transfer, samples, n, 0);
           n = 0;
           if(frame_complete)
           {
@@ -341,15 +364,25 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int bit_rate,
       /* Underrun when reading from stdin. Send some dummy samples to get the
        * remaining output samples for the end of current frame (because of
        * resampler and filter delays) and send them */
-      send_dummy_samples(radio, resampler, oscillator, frame_samples, frame_samples_size,
-                         samples, frequency_offset, 0);
+      send_dummy_samples(transfer,
+                         resampler,
+                         oscillator,
+                         frame_samples,
+                         frame_samples_size,
+                         samples,
+                         0);
     }
   }
 
   /* Send some dummy samples to get the remaining output samples (because of
    * resampler and filter delays) */
-  send_dummy_samples(radio, resampler, oscillator, frame_samples, frame_samples_size,
-                     samples, frequency_offset, 1);
+  send_dummy_samples(transfer,
+                     resampler,
+                     oscillator,
+                     frame_samples,
+                     frame_samples_size,
+                     samples,
+                     1);
 
   free(samples);
   free(frame_samples);
@@ -358,11 +391,15 @@ void send_frames(radio_t *radio, float sample_rate, unsigned int bit_rate,
   gmskframegen_destroy(frame_generator);
 }
 
-int frame_received(unsigned char *header, int header_valid,
-                   unsigned char *payload, unsigned int payload_size,
-                   int payload_valid, framesyncstats_s stats, void *user_data)
+int frame_received(unsigned char *header,
+                   int header_valid,
+                   unsigned char *payload,
+                   unsigned int payload_size,
+                   int payload_valid,
+                   framesyncstats_s stats,
+                   void *user_data)
 {
-  radio_t *radio = (radio_t *) user_data;
+  transfer_t *transfer = (transfer_t *) user_data;
   char id[5];
   unsigned int counter;
 
@@ -385,7 +422,7 @@ int frame_received(unsigned char *header, int header_valid,
       fflush(stderr);
     }
   }
-  if(memcmp(id, radio->id, 4) != 0)
+  if(memcmp(id, transfer->id, 4) != 0)
   {
     if(verbose)
     {
@@ -395,23 +432,26 @@ int frame_received(unsigned char *header, int header_valid,
   }
   else
   {
-    write_data(payload, payload_size);
+    write_data(transfer, payload, payload_size);
   }
   return(0);
 }
 
-void receive_frames(radio_t *radio, float sample_rate, unsigned int bit_rate)
+void receive_frames(transfer_t *transfer)
 {
-  gmskframesync frame_synchronizer = gmskframesync_create(frame_received, radio);
-  float resampling_ratio = (bit_rate * SAMPLES_PER_SYMBOL) / sample_rate;
+  gmskframesync frame_synchronizer = gmskframesync_create(frame_received, transfer);
+  float resampling_ratio = (transfer->bit_rate *
+                            SAMPLES_PER_SYMBOL) / (float) transfer->sample_rate;
   msresamp_crcf resampler = msresamp_crcf_create(resampling_ratio, 60);
   unsigned int delay = (unsigned int) ceilf(msresamp_crcf_get_delay(resampler));
   unsigned int n;
-  unsigned int frame_samples_size = (bit_rate * SAMPLES_PER_SYMBOL) / 20; /* 50 ms */
-  unsigned int samples_size = (unsigned int) floorf(frame_samples_size / resampling_ratio) + delay;
-  float frequency_offset = (float) radio->frequency - radio->center_frequency;
+  /* Process data by blocks of 50 ms */
+  unsigned int frame_samples_size = (transfer->bit_rate * SAMPLES_PER_SYMBOL) / 20;
+  unsigned int samples_size = (unsigned int) floorf(frame_samples_size /
+                                                    resampling_ratio) + delay;
   nco_crcf oscillator = nco_crcf_create(LIQUID_NCO);
-  complex float *frame_samples = malloc((frame_samples_size + delay) * sizeof(complex float));
+  complex float *frame_samples = malloc((frame_samples_size + delay) *
+                                        sizeof(complex float));
   complex float *samples = malloc(samples_size * sizeof(complex float));
 
   if((frame_samples == NULL) || (samples == NULL))
@@ -421,20 +461,21 @@ void receive_frames(radio_t *radio, float sample_rate, unsigned int bit_rate)
   }
 
   nco_crcf_set_phase(oscillator, 0);
-  nco_crcf_set_frequency(oscillator, TAU * (frequency_offset / sample_rate));
+  nco_crcf_set_frequency(oscillator, TAU * ((float) transfer->frequency_offset /
+                                            transfer->sample_rate));
 
   while(!stop)
   {
-    n = receive_from_radio(radio, samples, samples_size);
-    if((n == 0) && (radio->type == IO))
+    n = receive_from_radio(transfer, samples, samples_size);
+    if((n == 0) && (transfer->radio_type == IO))
     {
       break;
     }
-    if(dump)
+    if(transfer->dump)
     {
-      dump_samples(samples, n);
+      dump_samples(transfer, samples, n);
     }
-    if(frequency_offset != 0)
+    if(transfer->frequency_offset != 0)
     {
       nco_crcf_mix_block_down(oscillator, samples, samples, n);
     }
@@ -454,6 +495,167 @@ void receive_frames(radio_t *radio, float sample_rate, unsigned int bit_rate)
   nco_crcf_destroy(oscillator);
   msresamp_crcf_destroy(resampler);
   gmskframesync_destroy(frame_synchronizer);
+}
+
+transfer_t * create_transfer(radio_type_t radio_type,
+                             char *radio_driver,
+                             unsigned char emit,
+                             FILE *file,
+                             unsigned long int sample_rate,
+                             unsigned int bit_rate,
+                             unsigned long int frequency,
+                             long int frequency_offset,
+                             unsigned int gain,
+                             float ppm,
+                             crc_scheme crc,
+                             fec_scheme inner_fec,
+                             fec_scheme outer_fec,
+                             char *id,
+                             FILE *dump)
+{
+  int direction;
+  transfer_t *transfer = malloc(sizeof(transfer_t));
+
+  if(transfer == NULL)
+  {
+    fprintf(stderr, "Error: Memory allocation failed\n");
+    exit(-1);
+  }
+  bzero(transfer, sizeof(transfer_t));
+
+  transfer->radio_type = radio_type;
+  transfer->emit = emit;
+  transfer->file = file;
+  transfer->sample_rate = (unsigned long int) sample_rate * ((1000000.0 - ppm) /
+                                                             1000000.0);
+  transfer->frequency = (unsigned long int) frequency * ((1000000.0 - ppm) /
+                                                         1000000.0);
+  transfer->frequency_offset = frequency_offset;
+  transfer->bit_rate = bit_rate;
+  transfer->crc = crc;
+  transfer->inner_fec = inner_fec;
+  transfer->outer_fec = outer_fec;
+  strcpy(transfer->id, id);
+  transfer->dump = dump;
+  switch(radio_type)
+  {
+  case IO:
+    break;
+
+  case SOAPYSDR:
+    transfer->radio_device.soapysdr = SoapySDRDevice_makeStrArgs(radio_driver);
+    if(transfer->radio_device.soapysdr == NULL)
+    {
+      fprintf(stderr, "Error: %s\n", SoapySDRDevice_lastError());
+      exit(-1);
+    }
+    direction = emit ? SOAPY_SDR_TX : SOAPY_SDR_RX;
+    SOAPYSDR_CHECK(SoapySDRDevice_setSampleRate(transfer->radio_device.soapysdr,
+                                                direction,
+                                                0,
+                                                transfer->sample_rate));
+    SOAPYSDR_CHECK(SoapySDRDevice_setFrequency(transfer->radio_device.soapysdr,
+                                               direction,
+                                               0,
+                                               transfer->frequency - transfer->frequency_offset,
+                                               NULL));
+    SOAPYSDR_CHECK(SoapySDRDevice_setGain(transfer->radio_device.soapysdr,
+                                          direction,
+                                          0,
+                                          gain));
+    transfer->radio_stream.soapysdr = SoapySDRDevice_setupStream(transfer->radio_device.soapysdr,
+                                                                 direction,
+                                                                 SOAPY_SDR_CF32,
+                                                                 NULL,
+                                                                 0,
+                                                                 NULL);
+    if(transfer->radio_stream.soapysdr == NULL)
+    {
+      fprintf(stderr, "Error: %s\n", SoapySDRDevice_lastError());
+      SoapySDRDevice_unmake(transfer->radio_device.soapysdr);
+      exit(-1);
+    }
+    break;
+
+  default:
+    fprintf(stderr, "Error: Unknown radio type\n");
+    exit(-1);
+    break;
+  }
+
+  return(transfer);
+}
+
+void free_transfer(transfer_t *transfer)
+{
+  if(transfer)
+  {
+    switch(transfer->radio_type)
+    {
+    case IO:
+      break;
+
+    case SOAPYSDR:
+      SoapySDRDevice_deactivateStream(transfer->radio_device.soapysdr,
+                                      transfer->radio_stream.soapysdr,
+                                      0,
+                                      0);
+      SoapySDRDevice_closeStream(transfer->radio_device.soapysdr,
+                                 transfer->radio_stream.soapysdr);
+      SoapySDRDevice_unmake(transfer->radio_device.soapysdr);
+      break;
+
+    default:
+      break;
+    }
+    free(transfer);
+  }
+}
+
+void do_transfer(transfer_t *transfer)
+{
+  stop = 0;
+  switch(transfer->radio_type)
+  {
+  case IO:
+    if(verbose)
+    {
+      fprintf(stderr, "Info: Using IO pseudo-radio\n");
+    }
+    if(transfer->emit)
+    {
+      send_frames(transfer);
+    }
+    else
+    {
+      receive_frames(transfer);
+    }
+    break;
+
+  case SOAPYSDR:
+    if(transfer->emit)
+    {
+      SoapySDRDevice_activateStream(transfer->radio_device.soapysdr,
+                                    transfer->radio_stream.soapysdr,
+                                    0,
+                                    0,
+                                    0);
+      send_frames(transfer);
+    }
+    else
+    {
+      SoapySDRDevice_activateStream(transfer->radio_device.soapysdr,
+                                    transfer->radio_stream.soapysdr,
+                                    0,
+                                    0,
+                                    0);
+      receive_frames(transfer);
+    }
+    break;
+
+  default:
+    break;
+  }
 }
 
 void signal_handler(int signum)
@@ -600,23 +802,24 @@ int get_fec_schemes(char *str, fec_scheme *inner_fec, fec_scheme *outer_fec)
 
 int main(int argc, char **argv)
 {
-  int opt;
-  int flags;
-  float sample_rate = 2000000;
-  unsigned int bit_rate = 9600;
-  radio_t radio;
+  transfer_t *transfer;
+  radio_type_t radio_type = SOAPYSDR;
+  char *radio_driver = "";
   unsigned int emit = 0;
+  unsigned long int sample_rate = 2000000;
+  unsigned int bit_rate = 9600;
+  unsigned long int frequency = 434000000;
+  long int frequency_offset = 0;
   unsigned int gain = 0;
-  int offset = 0;
   float ppm = 0;
   crc_scheme crc = LIQUID_CRC_32;
   fec_scheme inner_fec = LIQUID_FEC_HAMMING128;
   fec_scheme outer_fec = LIQUID_FEC_NONE;
-  char *soapysdr_driver = "";
-
-  bzero(&radio, sizeof(radio));
-  radio.type = SOAPYSDR;
-  radio.frequency = 434000000;
+  char id[5];
+  FILE *file;
+  FILE *dump = NULL;
+  int opt;
+  int flags;
 
   while((opt = getopt(argc, argv, "b:c:d:e:f:g:hi:o:r:s:tv")) != -1)
   {
@@ -653,8 +856,8 @@ int main(int argc, char **argv)
       break;
 
     case 'f':
-      radio.frequency = strtoul(optarg, NULL, 10);
-      if(radio.frequency == 0)
+      frequency = strtoul(optarg, NULL, 10);
+      if(frequency == 0)
       {
         fprintf(stderr, "Error: Invalid frequency: '%s'\n", optarg);
         return(-1);
@@ -672,7 +875,7 @@ int main(int argc, char **argv)
     case 'i':
       if(strlen(optarg) <= 4)
       {
-        strcpy(radio.id, optarg);
+        strcpy(id, optarg);
       }
       else
       {
@@ -682,7 +885,7 @@ int main(int argc, char **argv)
       break;
 
     case 'o':
-      offset = strtol(optarg, NULL, 10);
+      frequency_offset = strtol(optarg, NULL, 10);
       break;
 
     case 's':
@@ -697,12 +900,12 @@ int main(int argc, char **argv)
     case 'r':
       if(strcasecmp(optarg, "io") == 0)
       {
-        radio.type = IO;
+        radio_type = IO;
       }
       else
       {
-        radio.type = SOAPYSDR;
-        soapysdr_driver = optarg;
+        radio_type = SOAPYSDR;
+        radio_driver = optarg;
       }
       break;
 
@@ -749,110 +952,27 @@ int main(int argc, char **argv)
     }
   }
 
-  if(ppm != 0)
-  {
-    sample_rate = sample_rate * ((1000000.0 - ppm) / 1000000.0);
-    radio.frequency = (unsigned long int) (radio.frequency * ((1000000.0 - ppm) / 1000000.0));
-  }
-  radio.center_frequency = radio.frequency - offset;
-
   signal(SIGINT, &signal_handler);
   signal(SIGTERM, &signal_handler);
   signal(SIGABRT, &signal_handler);
 
-  switch(radio.type)
-  {
-  case IO:
-    if(verbose)
-    {
-      fprintf(stderr, "Info: Using IO pseudo-radio\n");
-    }
-    if(emit)
-    {
-      send_frames(&radio, sample_rate, bit_rate, crc, inner_fec, outer_fec);
-    }
-    else
-    {
-      receive_frames(&radio, sample_rate, bit_rate);
-    }
-    break;
-
-  case SOAPYSDR:
-    radio.device.soapysdr = SoapySDRDevice_makeStrArgs(soapysdr_driver);
-    if(radio.device.soapysdr == NULL)
-    {
-      fprintf(stderr, "Error: %s\n", SoapySDRDevice_lastError());
-      return(-1);
-    }
-    if(emit)
-    {
-      SOAPYSDR_CHECK(SoapySDRDevice_setSampleRate(radio.device.soapysdr,
-                                                  SOAPY_SDR_TX,
-                                                  0,
-                                                  sample_rate));
-      SOAPYSDR_CHECK(SoapySDRDevice_setFrequency(radio.device.soapysdr,
-                                                 SOAPY_SDR_TX,
-                                                 0,
-                                                 radio.center_frequency,
-                                                 NULL));
-      SOAPYSDR_CHECK(SoapySDRDevice_setGain(radio.device.soapysdr,
-                                            SOAPY_SDR_TX,
-                                            0,
-                                            gain));
-      radio.stream = SoapySDRDevice_setupStream(radio.device.soapysdr,
-                                                SOAPY_SDR_TX,
-                                                SOAPY_SDR_CF32,
-                                                NULL,
-                                                0,
-                                                NULL);
-      if(radio.stream == NULL)
-      {
-        fprintf(stderr, "Error: %s\n", SoapySDRDevice_lastError());
-        SoapySDRDevice_unmake(radio.device.soapysdr);
-        return(-1);
-      }
-      SoapySDRDevice_activateStream(radio.device.soapysdr, radio.stream, 0, 0, 0);
-      send_frames(&radio, sample_rate, bit_rate, crc, inner_fec, outer_fec);
-    }
-    else
-    {
-      SOAPYSDR_CHECK(SoapySDRDevice_setSampleRate(radio.device.soapysdr,
-                                                  SOAPY_SDR_RX,
-                                                  0,
-                                                  sample_rate));
-      SOAPYSDR_CHECK(SoapySDRDevice_setFrequency(radio.device.soapysdr,
-                                                 SOAPY_SDR_RX,
-                                                 0,
-                                                 radio.center_frequency,
-                                                 NULL));
-      SOAPYSDR_CHECK(SoapySDRDevice_setGain(radio.device.soapysdr,
-                                            SOAPY_SDR_RX,
-                                            0,
-                                            gain));
-      radio.stream = SoapySDRDevice_setupStream(radio.device.soapysdr,
-                                                SOAPY_SDR_RX,
-                                                SOAPY_SDR_CF32,
-                                                NULL,
-                                                0,
-                                                NULL);
-      if(radio.stream == NULL)
-      {
-        fprintf(stderr, "Error: %s\n", SoapySDRDevice_lastError());
-        SoapySDRDevice_unmake(radio.device.soapysdr);
-        return(-1);
-      }
-      SoapySDRDevice_activateStream(radio.device.soapysdr, radio.stream, 0, 0, 0);
-      receive_frames(&radio, sample_rate, bit_rate);
-    }
-    SoapySDRDevice_deactivateStream(radio.device.soapysdr, radio.stream, 0, 0);
-    SoapySDRDevice_closeStream(radio.device.soapysdr, radio.stream);
-    SoapySDRDevice_unmake(radio.device.soapysdr);
-    break;
-
-  default:
-    fprintf(stderr, "Error: Unknown radio type\n");
-    return(-1);
-  }
+  transfer = create_transfer(radio_type,
+                             radio_driver,
+                             emit,
+                             file,
+                             sample_rate,
+                             bit_rate,
+                             frequency,
+                             frequency_offset,
+                             gain,
+                             ppm,
+                             crc,
+                             inner_fec,
+                             outer_fec,
+                             id,
+                             dump);
+  do_transfer(transfer);
+  free_transfer(transfer);
 
   fclose(file);
   if(dump)
