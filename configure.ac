@@ -1,6 +1,6 @@
 AC_INIT(gmsk-transfer, 1.0.1)
 AM_INIT_AUTOMAKE
-AC_CONFIG_SRCDIR(gmsk-transfer.c)
+AC_CONFIG_SRCDIR(src/gmsk-transfer.c)
 
 dnl Check for toolchain and install components
 AC_PROG_CC
