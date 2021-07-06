@@ -519,23 +519,59 @@ transfer_t * create_transfer(radio_type_t radio_type,
   if(transfer == NULL)
   {
     fprintf(stderr, "Error: Memory allocation failed\n");
-    exit(-1);
+    return(NULL);
   }
   bzero(transfer, sizeof(transfer_t));
 
   transfer->radio_type = radio_type;
   transfer->emit = emit;
   transfer->file = file;
-  transfer->sample_rate = (unsigned long int) sample_rate * ((1000000.0 - ppm) /
-                                                             1000000.0);
-  transfer->frequency = (unsigned long int) frequency * ((1000000.0 - ppm) /
-                                                         1000000.0);
+  if(sample_rate != 0)
+  {
+    transfer->sample_rate = (unsigned long int) sample_rate * ((1000000.0 - ppm) /
+                                                               1000000.0);
+  }
+  else
+  {
+    fprintf(stderr, "Error: Invalid sample\n");
+    free(transfer);
+    return(NULL);
+  }
+  if(frequency != 0)
+  {
+    transfer->frequency = (unsigned long int) frequency * ((1000000.0 - ppm) /
+                                                           1000000.0);
+  }
+  else
+  {
+    fprintf(stderr, "Error: Invalid frequency\n");
+    free(transfer);
+    return(NULL);
+  }
   transfer->frequency_offset = frequency_offset;
-  transfer->bit_rate = bit_rate;
+  if(bit_rate != 0)
+  {
+    transfer->bit_rate = bit_rate;
+  }
+  else
+  {
+    fprintf(stderr, "Error: Invalid bit rate\n");
+    free(transfer);
+    return(NULL);
+  }
   transfer->crc = crc;
   transfer->inner_fec = inner_fec;
   transfer->outer_fec = outer_fec;
-  strcpy(transfer->id, id);
+  if(strlen(id) <= 4)
+  {
+    strcpy(transfer->id, id);
+  }
+  else
+  {
+    fprintf(stderr, "Error: Id must be at most 4 bytes long\n");
+    free(transfer);
+    return(NULL);
+  }
   transfer->dump = dump;
   switch(radio_type)
   {
@@ -815,7 +851,7 @@ int main(int argc, char **argv)
   crc_scheme crc = LIQUID_CRC_32;
   fec_scheme inner_fec = LIQUID_FEC_HAMMING128;
   fec_scheme outer_fec = LIQUID_FEC_NONE;
-  char id[5];
+  char *id;
   FILE *file;
   FILE *dump = NULL;
   int opt;
@@ -827,11 +863,6 @@ int main(int argc, char **argv)
     {
     case 'b':
       bit_rate = strtoul(optarg, NULL, 10);
-      if(bit_rate == 0)
-      {
-        fprintf(stderr, "Error: Invalid bit rate: '%s'\n", optarg);
-        return(-1);
-      }
       break;
 
     case 'c':
@@ -857,11 +888,6 @@ int main(int argc, char **argv)
 
     case 'f':
       frequency = strtoul(optarg, NULL, 10);
-      if(frequency == 0)
-      {
-        fprintf(stderr, "Error: Invalid frequency: '%s'\n", optarg);
-        return(-1);
-      }
       break;
 
     case 'g':
@@ -873,28 +899,11 @@ int main(int argc, char **argv)
       return(0);
 
     case 'i':
-      if(strlen(optarg) <= 4)
-      {
-        strcpy(id, optarg);
-      }
-      else
-      {
-        fprintf(stderr, "Error: Id must be at most 4 bytes long\n");
-        return(-1);
-      }
+      id = optarg;
       break;
 
     case 'o':
       frequency_offset = strtol(optarg, NULL, 10);
-      break;
-
-    case 's':
-      sample_rate = strtoul(optarg, NULL, 10);
-      if(sample_rate == 0)
-      {
-        fprintf(stderr, "Error: Invalid sample rate: '%s'\n", optarg);
-        return(-1);
-      }
       break;
 
     case 'r':
@@ -907,6 +916,10 @@ int main(int argc, char **argv)
         radio_type = SOAPYSDR;
         radio_driver = optarg;
       }
+      break;
+
+    case 's':
+      sample_rate = strtoul(optarg, NULL, 10);
       break;
 
     case 't':
@@ -971,6 +984,11 @@ int main(int argc, char **argv)
                              outer_fec,
                              id,
                              dump);
+  if(transfer == NULL)
+  {
+    fprintf(stderr, "Error: Failed to initialize transfer\n");
+    return(-1);
+  }
   do_transfer(transfer);
   free_transfer(transfer);
 
