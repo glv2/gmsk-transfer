@@ -497,23 +497,23 @@ void receive_frames(transfer_t *transfer)
   gmskframesync_destroy(frame_synchronizer);
 }
 
-transfer_t * create_transfer(radio_type_t radio_type,
+transfer_t * create_transfer(char *radio_type,
                              char *radio_driver,
                              unsigned char emit,
-                             FILE *file,
+                             char *file,
                              unsigned long int sample_rate,
                              unsigned int bit_rate,
                              unsigned long int frequency,
                              long int frequency_offset,
                              unsigned int gain,
                              float ppm,
-                             crc_scheme crc,
-                             fec_scheme inner_fec,
-                             fec_scheme outer_fec,
+                             char *inner_fec,
+                             char *outer_fec,
                              char *id,
-                             FILE *dump)
+                             char *dump)
 {
   int direction;
+  int flags;
   transfer_t *transfer = malloc(sizeof(transfer_t));
 
   if(transfer == NULL)
@@ -523,9 +523,48 @@ transfer_t * create_transfer(radio_type_t radio_type,
   }
   bzero(transfer, sizeof(transfer_t));
 
-  transfer->radio_type = radio_type;
+  if(strcasecmp(radio_type, "io") == 0)
+  {
+    transfer->radio_type = IO;
+  }
+  else
+  {
+    transfer->radio_type = SOAPYSDR;
+  }
+
   transfer->emit = emit;
-  transfer->file = file;
+
+  if(file)
+  {
+    if(emit)
+    {
+      transfer->file = fopen(file, "rb");
+    }
+    else
+    {
+      transfer->file = fopen(file, "wb");
+    }
+    if(transfer->file == NULL)
+    {
+      fprintf(stderr, "Error: Failed to open '%s'\n", file);
+      free(transfer);
+      return(NULL);
+    }
+  }
+  else
+  {
+    if(emit)
+    {
+      transfer->file = stdin;
+      flags = fcntl(STDIN_FILENO, F_GETFL);
+      fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
+    }
+    else
+    {
+      transfer->file = stdout;
+    }
+  }
+
   if(sample_rate != 0)
   {
     transfer->sample_rate = (unsigned long int) sample_rate * ((1000000.0 - ppm) /
@@ -537,6 +576,7 @@ transfer_t * create_transfer(radio_type_t radio_type,
     free(transfer);
     return(NULL);
   }
+
   if(frequency != 0)
   {
     transfer->frequency = (unsigned long int) frequency * ((1000000.0 - ppm) /
@@ -548,7 +588,9 @@ transfer_t * create_transfer(radio_type_t radio_type,
     free(transfer);
     return(NULL);
   }
+
   transfer->frequency_offset = frequency_offset;
+
   if(bit_rate != 0)
   {
     transfer->bit_rate = bit_rate;
@@ -559,9 +601,25 @@ transfer_t * create_transfer(radio_type_t radio_type,
     free(transfer);
     return(NULL);
   }
-  transfer->crc = crc;
-  transfer->inner_fec = inner_fec;
-  transfer->outer_fec = outer_fec;
+
+  transfer->crc = LIQUID_CRC_32;
+
+  transfer->inner_fec = liquid_getopt_str2fec(inner_fec);
+  if(transfer->inner_fec == LIQUID_FEC_UNKNOWN)
+  {
+    fprintf(stderr, "Error: Invalid inner FEC\n");
+    free(transfer);
+    return(NULL);
+  }
+
+  transfer->outer_fec = liquid_getopt_str2fec(outer_fec);
+  if(transfer->outer_fec == LIQUID_FEC_UNKNOWN)
+  {
+    fprintf(stderr, "Error: Invalid outer FEC\n");
+    free(transfer);
+    return(NULL);
+  }
+
   if(strlen(id) <= 4)
   {
     strcpy(transfer->id, id);
@@ -572,8 +630,23 @@ transfer_t * create_transfer(radio_type_t radio_type,
     free(transfer);
     return(NULL);
   }
-  transfer->dump = dump;
-  switch(radio_type)
+
+  if(dump)
+  {
+    transfer->dump = fopen(dump, "wb");
+    if(transfer->dump == NULL)
+    {
+      fprintf(stderr, "Error: Failed to open '%s'\n", dump);
+      free(transfer);
+      return(NULL);
+    }
+  }
+  else
+  {
+    transfer->dump = NULL;
+  }
+
+  switch(transfer->radio_type)
   {
   case IO:
     break;
@@ -629,6 +702,11 @@ void free_transfer(transfer_t *transfer)
 {
   if(transfer)
   {
+    fclose(transfer->file);
+    if(transfer->dump)
+    {
+      fclose(transfer->dump);
+    }
     switch(transfer->radio_type)
     {
     case IO:
@@ -697,6 +775,12 @@ void do_transfer(transfer_t *transfer)
   }
 }
 
+void interrupt_transfer()
+{
+  stop = 1;
+  fclose(stdin);
+}
+
 void signal_handler(int signum)
 {
   if(verbose)
@@ -707,8 +791,7 @@ void signal_handler(int signum)
   {
     fprintf(stderr, "\n");
   }
-  stop = 1;
-  fclose(stdin);
+  interrupt_transfer();
 }
 
 void usage()
@@ -805,7 +888,7 @@ void usage()
   liquid_print_fec_schemes();
 }
 
-int get_fec_schemes(char *str, fec_scheme *inner_fec, fec_scheme *outer_fec)
+void get_fec_schemes(char *str, char *inner_fec, char *outer_fec)
 {
   unsigned int size = strlen(str);
   char spec[size + 1];
@@ -817,32 +900,36 @@ int get_fec_schemes(char *str, fec_scheme *inner_fec, fec_scheme *outer_fec)
     *separation = '\0';
   }
 
-  *inner_fec = liquid_getopt_str2fec(spec);
-  if(*inner_fec == LIQUID_FEC_UNKNOWN)
+  if(strlen(spec) < 32)
   {
-    return(-1);
+    strcpy(inner_fec, spec);
+  }
+  else
+  {
+    strcpy(inner_fec, "unknown");
   }
 
   if(separation != NULL)
   {
-    *outer_fec = liquid_getopt_str2fec(separation + 1);
-    if(*outer_fec == LIQUID_FEC_UNKNOWN)
+    if(strlen(separation + 1) < 32)
     {
-      return(-1);
+      strcpy(outer_fec, separation + 1);
+    }
+    else
+    {
+      strcpy(outer_fec, "unknown");
     }
   }
   else
   {
-    *outer_fec = LIQUID_FEC_NONE;
+    strcpy(outer_fec, "none");
   }
-
-  return(0);
 }
 
 int main(int argc, char **argv)
 {
   transfer_t *transfer;
-  radio_type_t radio_type = SOAPYSDR;
+  char *radio_type = "soapysdr";
   char *radio_driver = "";
   unsigned int emit = 0;
   unsigned long int sample_rate = 2000000;
@@ -851,14 +938,15 @@ int main(int argc, char **argv)
   long int frequency_offset = 0;
   unsigned int gain = 0;
   float ppm = 0;
-  crc_scheme crc = LIQUID_CRC_32;
-  fec_scheme inner_fec = LIQUID_FEC_HAMMING128;
-  fec_scheme outer_fec = LIQUID_FEC_NONE;
-  char *id;
-  FILE *file;
-  FILE *dump = NULL;
+  char inner_fec[32];
+  char outer_fec[32];
+  char *id = "";
+  char *file = NULL;
+  char *dump = NULL;
   int opt;
-  int flags;
+
+  strcpy(inner_fec, "h128");
+  strcpy(outer_fec, "none");
 
   while((opt = getopt(argc, argv, "b:c:d:e:f:g:hi:o:r:s:tv")) != -1)
   {
@@ -873,20 +961,11 @@ int main(int argc, char **argv)
       break;
 
     case 'd':
-      dump = fopen(optarg, "wb");
-      if(dump == NULL)
-      {
-        fprintf(stderr, "Error: Failed to open '%s'\n", optarg);
-        return(EXIT_FAILURE);
-      }
+      dump = optarg;
       break;
 
     case 'e':
-      if(get_fec_schemes(optarg, &inner_fec, &outer_fec) != 0)
-      {
-        fprintf(stderr, "Error: Unknown FEC schemes: '%s'\n", optarg);
-        return(EXIT_FAILURE);
-      }
+      get_fec_schemes(optarg, inner_fec, outer_fec);
       break;
 
     case 'f':
@@ -910,15 +989,7 @@ int main(int argc, char **argv)
       break;
 
     case 'r':
-      if(strcasecmp(optarg, "io") == 0)
-      {
-        radio_type = IO;
-      }
-      else
-      {
-        radio_type = SOAPYSDR;
-        radio_driver = optarg;
-      }
+      radio_type = optarg;
       break;
 
     case 's':
@@ -940,32 +1011,11 @@ int main(int argc, char **argv)
   }
   if(optind < argc)
   {
-    if(emit)
-    {
-      file = fopen(argv[optind], "rb");
-    }
-    else
-    {
-      file = fopen(argv[optind], "wb");
-    }
-    if(file == NULL)
-    {
-      fprintf(stderr, "Error: Failed to open '%s'\n", argv[optind]);
-      return(EXIT_FAILURE);
-    }
+    file = argv[optind];
   }
   else
   {
-    if(emit)
-    {
-      file = stdin;
-      flags = fcntl(STDIN_FILENO, F_GETFL);
-      fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
-    }
-    else
-    {
-      file = stdout;
-    }
+    file = NULL;
   }
 
   signal(SIGINT, &signal_handler);
@@ -982,7 +1032,6 @@ int main(int argc, char **argv)
                              frequency_offset,
                              gain,
                              ppm,
-                             crc,
                              inner_fec,
                              outer_fec,
                              id,
@@ -995,11 +1044,6 @@ int main(int argc, char **argv)
   do_transfer(transfer);
   free_transfer(transfer);
 
-  fclose(file);
-  if(dump)
-  {
-    fclose(dump);
-  }
   if(verbose)
   {
     fprintf(stderr, "\n");
