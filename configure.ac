@@ -1,10 +1,12 @@
 AC_INIT(gmsk-transfer, 1.0.1)
 AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR(src/gmsk-transfer.c)
+AC_CONFIG_MACRO_DIRS([m4])
 
 dnl Check for toolchain and install components
 AC_PROG_CC
 AC_PROG_INSTALL
+LT_INIT([shared disable-static])
 
 dnl Check for standard headers
 AC_CHECK_HEADERS([complex.h fcntl.h signal.h stdio.h stdlib.h string.h strings.h unistd.h])
