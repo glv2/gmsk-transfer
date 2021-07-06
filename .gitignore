@@ -15,9 +15,13 @@ m4/
 Makefile
 Makefile.in
 missing
-test.sh.*
 test-driver
 test-suite.log
+tests/test-library
+tests/test-library.log
+tests/test-library.trs
+tests/test-program.sh.log
+tests/test-program.sh.trs
 *.la
 *.lo
 *.o

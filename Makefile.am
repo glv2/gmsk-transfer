@@ -11,5 +11,10 @@ gmsk_transfer_LDADD = libgmsk-transfer.la
 
 include_HEADERS = src/gmsk-transfer.h
 
-TESTS = test.sh
-EXTRA_DIST = test.sh
+check_PROGRAMS = tests/test-library
+tests_test_library_SOURCES = tests/test-library.c
+tests_test_library_CFLAGS = -I src
+tests_test_library_LDADD = libgmsk-transfer.la
+TESTS = tests/test-library tests/test-program.sh
+
+EXTRA_DIST = tests/test-program.sh
