@@ -41,7 +41,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
   if(e != 0) \
   { \
     fprintf(stderr, "Error: %s\n", SoapySDRDevice_lastError()); \
-    exit(-1); \
+    exit(EXIT_FAILURE); \
   } \
 }
 
@@ -294,7 +294,7 @@ void send_frames(transfer_t *transfer)
   if((frame_samples == NULL) || (samples == NULL))
   {
     fprintf(stderr, "Error: Memory allocation failed\n");
-    exit(-1);
+    exit(EXIT_FAILURE);
   }
 
   nco_crcf_set_phase(oscillator, 0);
@@ -457,7 +457,7 @@ void receive_frames(transfer_t *transfer)
   if((frame_samples == NULL) || (samples == NULL))
   {
     fprintf(stderr, "Error: Memory allocation failed\n");
-    exit(-1);
+    exit(EXIT_FAILURE);
   }
 
   nco_crcf_set_phase(oscillator, 0);
@@ -583,7 +583,8 @@ transfer_t * create_transfer(radio_type_t radio_type,
     if(transfer->radio_device.soapysdr == NULL)
     {
       fprintf(stderr, "Error: %s\n", SoapySDRDevice_lastError());
-      exit(-1);
+      free(transfer);
+      return(NULL);
     }
     direction = emit ? SOAPY_SDR_TX : SOAPY_SDR_RX;
     SOAPYSDR_CHECK(SoapySDRDevice_setSampleRate(transfer->radio_device.soapysdr,
@@ -609,13 +610,15 @@ transfer_t * create_transfer(radio_type_t radio_type,
     {
       fprintf(stderr, "Error: %s\n", SoapySDRDevice_lastError());
       SoapySDRDevice_unmake(transfer->radio_device.soapysdr);
-      exit(-1);
+      free(transfer);
+      return(NULL);
     }
     break;
 
   default:
     fprintf(stderr, "Error: Unknown radio type\n");
-    exit(-1);
+    free(transfer);
+    return(NULL);
     break;
   }
 
@@ -874,7 +877,7 @@ int main(int argc, char **argv)
       if(dump == NULL)
       {
         fprintf(stderr, "Error: Failed to open '%s'\n", optarg);
-        return(-1);
+        return(EXIT_FAILURE);
       }
       break;
 
@@ -882,7 +885,7 @@ int main(int argc, char **argv)
       if(get_fec_schemes(optarg, &inner_fec, &outer_fec) != 0)
       {
         fprintf(stderr, "Error: Unknown FEC schemes: '%s'\n", optarg);
-        return(-1);
+        return(EXIT_FAILURE);
       }
       break;
 
@@ -896,7 +899,7 @@ int main(int argc, char **argv)
 
     case 'h':
       usage();
-      return(0);
+      return(EXIT_SUCCESS);
 
     case 'i':
       id = optarg;
@@ -932,7 +935,7 @@ int main(int argc, char **argv)
 
     default:
       fprintf(stderr, "Error: Unknown parameter: '-%c %s'\n", opt, optarg);
-      return(-1);
+      return(EXIT_FAILURE);
     }
   }
   if(optind < argc)
@@ -948,7 +951,7 @@ int main(int argc, char **argv)
     if(file == NULL)
     {
       fprintf(stderr, "Error: Failed to open '%s'\n", argv[optind]);
-      return(-1);
+      return(EXIT_FAILURE);
     }
   }
   else
@@ -987,7 +990,7 @@ int main(int argc, char **argv)
   if(transfer == NULL)
   {
     fprintf(stderr, "Error: Failed to initialize transfer\n");
-    return(-1);
+    return(EXIT_FAILURE);
   }
   do_transfer(transfer);
   free_transfer(transfer);
@@ -1002,5 +1005,5 @@ int main(int argc, char **argv)
     fprintf(stderr, "\n");
   }
 
-  return(0);
+  return(EXIT_SUCCESS);
 }
