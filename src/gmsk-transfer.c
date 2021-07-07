@@ -539,7 +539,7 @@ gmsk_transfer_t gmsk_transfer_create(char *radio_driver,
     fprintf(stderr, "Error: Memory allocation failed\n");
     return(NULL);
   }
-  bzero(transfer, sizeof(gmsk_transfer_t));
+  bzero(transfer, sizeof(struct gmsk_transfer_s));
 
   if(strcasecmp(radio_driver, "io") == 0)
   {
