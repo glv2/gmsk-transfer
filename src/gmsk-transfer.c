@@ -61,7 +61,7 @@ typedef union
   SoapySDRStream *soapysdr;
 } radio_stream_t;
 
-struct transfer_s
+struct gmsk_transfer_s
 {
   radio_type_t radio_type;
   radio_device_t radio_device;
@@ -77,27 +77,32 @@ struct transfer_s
   fec_scheme outer_fec;
   char id[5];
   FILE *dump;
+  unsigned char stop;
 };
 
 unsigned char stop = 0;
 unsigned char verbose = 0;
 
-void set_verbose(unsigned char v)
+void gmsk_transfer_set_verbose(unsigned char v)
 {
   verbose = v;
 }
 
-unsigned char is_verbose()
+unsigned char gmsk_transfer_is_verbose()
 {
   return(verbose);
 }
 
-void dump_samples(transfer_t transfer, complex float *samples, unsigned int samples_size)
+void dump_samples(gmsk_transfer_t transfer,
+                  complex float *samples,
+                  unsigned int samples_size)
 {
   fwrite(samples, sizeof(complex float), samples_size, transfer->dump);
 }
 
-int read_data(transfer_t transfer, unsigned char *payload, unsigned int payload_size)
+int read_data(gmsk_transfer_t transfer,
+              unsigned char *payload,
+              unsigned int payload_size)
 {
   int n;
 
@@ -115,7 +120,9 @@ int read_data(transfer_t transfer, unsigned char *payload, unsigned int payload_
   return(n);
 }
 
-void write_data(transfer_t transfer, unsigned char *payload, unsigned int payload_size)
+void write_data(gmsk_transfer_t transfer,
+                unsigned char *payload,
+                unsigned int payload_size)
 {
   fwrite(payload, 1, payload_size, transfer->file);
   if(transfer->file == stdout)
@@ -124,7 +131,7 @@ void write_data(transfer_t transfer, unsigned char *payload, unsigned int payloa
   }
 }
 
-void send_to_radio(transfer_t transfer,
+void send_to_radio(gmsk_transfer_t transfer,
                    complex float *samples,
                    unsigned int samples_size,
                    int last)
@@ -150,7 +157,7 @@ void send_to_radio(transfer_t transfer,
 
   case SOAPYSDR:
     n = 0;
-    while((n < samples_size) && (!stop))
+    while((n < samples_size) && (!stop) && (!transfer->stop))
     {
       buffers[0] = &samples[n];
       size = samples_size - n;
@@ -168,12 +175,13 @@ void send_to_radio(transfer_t transfer,
     }
     if(last)
     {
-      /* Complete the remaining buffer to ensure that SoapySDR will process it */
+      /* Complete the remaining buffer to ensure that SoapySDR
+       * will process it */
       size = SoapySDRDevice_getStreamMTU(transfer->radio_device.soapysdr,
                                          transfer->radio_stream.soapysdr);
       bzero(samples, samples_size * sizeof(complex float));
       buffers[0] = samples;
-      while((size > 0) && (!stop))
+      while((size > 0) && (!stop) && (!transfer->stop))
       {
         n = (samples_size < size) ? samples_size : size;
         r = SoapySDRDevice_writeStream(transfer->radio_device.soapysdr,
@@ -198,7 +206,7 @@ void send_to_radio(transfer_t transfer,
                                             &timestamp,
                                             10000);
       }
-      while((r != SOAPY_SDR_UNDERFLOW) && (!stop));
+      while((r != SOAPY_SDR_UNDERFLOW) && (!stop) && (!transfer->stop));
 
       /* Give enough time to the hardware to send the last samples */
       usleep(1000000);
@@ -207,7 +215,7 @@ void send_to_radio(transfer_t transfer,
   }
 }
 
-unsigned int receive_from_radio(transfer_t transfer,
+unsigned int receive_from_radio(gmsk_transfer_t transfer,
                                 complex float *samples,
                                 unsigned int samples_size)
 {
@@ -254,7 +262,7 @@ unsigned int get_counter(unsigned char *header)
   return((header[4] << 24) | (header[5] << 16) | (header[6] << 8) | header[7]);
 }
 
-void send_dummy_samples(transfer_t transfer,
+void send_dummy_samples(gmsk_transfer_t transfer,
                         msresamp_crcf resampler,
                         nco_crcf oscillator,
                         complex float *frame_samples,
@@ -276,7 +284,7 @@ void send_dummy_samples(transfer_t transfer,
   send_to_radio(transfer, samples, n, last);
 }
 
-void send_frames(transfer_t transfer)
+void send_frames(gmsk_transfer_t transfer)
 {
   gmskframegen frame_generator = gmskframegen_create();
   float resampling_ratio = (float) transfer->sample_rate / (transfer->bit_rate *
@@ -314,7 +322,7 @@ void send_frames(transfer_t transfer)
   memcpy(header, transfer->id, 4);
   set_counter(header, counter);
 
-  while(!stop)
+  while((!stop) && (!transfer->stop))
   {
     r = read_data(transfer, payload, payload_size);
     if(r < 0)
@@ -336,7 +344,8 @@ void send_frames(transfer_t transfer)
       n = 0;
       while(!frame_complete)
       {
-        frame_complete = gmskframegen_write_samples(frame_generator, &frame_samples[n]);
+        frame_complete = gmskframegen_write_samples(frame_generator,
+                                                    &frame_samples[n]);
         n += SAMPLES_PER_SYMBOL;
         if(frame_complete || (n + SAMPLES_PER_SYMBOL > frame_samples_size))
         {
@@ -410,7 +419,7 @@ int frame_received(unsigned char *header,
                    framesyncstats_s stats,
                    void *user_data)
 {
-  transfer_t transfer = (transfer_t) user_data;
+  gmsk_transfer_t transfer = (gmsk_transfer_t) user_data;
   char id[5];
   unsigned int counter;
 
@@ -448,7 +457,7 @@ int frame_received(unsigned char *header,
   return(0);
 }
 
-void receive_frames(transfer_t transfer)
+void receive_frames(gmsk_transfer_t transfer)
 {
   gmskframesync frame_synchronizer = gmskframesync_create(frame_received, transfer);
   float resampling_ratio = (transfer->bit_rate *
@@ -475,7 +484,7 @@ void receive_frames(transfer_t transfer)
   nco_crcf_set_frequency(oscillator, TAU * ((float) transfer->frequency_offset /
                                             transfer->sample_rate));
 
-  while(!stop)
+  while((!stop) && (!transfer->stop))
   {
     n = receive_from_radio(transfer, samples, samples_size);
     if((n == 0) && (transfer->radio_type == IO))
@@ -508,31 +517,31 @@ void receive_frames(transfer_t transfer)
   gmskframesync_destroy(frame_synchronizer);
 }
 
-transfer_t create_transfer(char *radio_type,
-                           char *radio_driver,
-                           unsigned char emit,
-                           char *file,
-                           unsigned long int sample_rate,
-                           unsigned int bit_rate,
-                           unsigned long int frequency,
-                           long int frequency_offset,
-                           unsigned int gain,
-                           float ppm,
-                           char *inner_fec,
-                           char *outer_fec,
-                           char *id,
-                           char *dump)
+gmsk_transfer_t gmsk_transfer_create(char *radio_type,
+                                     char *radio_driver,
+                                     unsigned char emit,
+                                     char *file,
+                                     unsigned long int sample_rate,
+                                     unsigned int bit_rate,
+                                     unsigned long int frequency,
+                                     long int frequency_offset,
+                                     unsigned int gain,
+                                     float ppm,
+                                     char *inner_fec,
+                                     char *outer_fec,
+                                     char *id,
+                                     char *dump)
 {
   int direction;
   int flags;
-  transfer_t transfer = malloc(sizeof(struct transfer_s));
+  gmsk_transfer_t transfer = malloc(sizeof(struct gmsk_transfer_s));
 
   if(transfer == NULL)
   {
     fprintf(stderr, "Error: Memory allocation failed\n");
     return(NULL);
   }
-  bzero(transfer, sizeof(transfer_t));
+  bzero(transfer, sizeof(gmsk_transfer_t));
 
   if(strcasecmp(radio_type, "io") == 0)
   {
@@ -543,6 +552,7 @@ transfer_t create_transfer(char *radio_type,
     transfer->radio_type = SOAPYSDR;
   }
 
+  transfer->stop = 0;
   transfer->emit = emit;
 
   if(file)
@@ -578,8 +588,7 @@ transfer_t create_transfer(char *radio_type,
 
   if(sample_rate != 0)
   {
-    transfer->sample_rate = (unsigned long int) sample_rate * ((1000000.0 - ppm) /
-                                                               1000000.0);
+    transfer->sample_rate = sample_rate * ((1000000.0 - ppm) / 1000000.0);
   }
   else
   {
@@ -590,8 +599,7 @@ transfer_t create_transfer(char *radio_type,
 
   if(frequency != 0)
   {
-    transfer->frequency = (unsigned long int) frequency * ((1000000.0 - ppm) /
-                                                           1000000.0);
+    transfer->frequency = frequency * ((1000000.0 - ppm) / 1000000.0);
   }
   else
   {
@@ -709,7 +717,7 @@ transfer_t create_transfer(char *radio_type,
   return(transfer);
 }
 
-void free_transfer(transfer_t transfer)
+void gmsk_transfer_free(gmsk_transfer_t transfer)
 {
   if(transfer)
   {
@@ -740,9 +748,10 @@ void free_transfer(transfer_t transfer)
   }
 }
 
-void do_transfer(transfer_t transfer)
+void gmsk_transfer_start(gmsk_transfer_t transfer)
 {
   stop = 0;
+  transfer->stop = 0;
   switch(transfer->radio_type)
   {
   case IO:
@@ -786,13 +795,17 @@ void do_transfer(transfer_t transfer)
   }
 }
 
-void interrupt_transfer()
+void gmsk_transfer_stop(gmsk_transfer_t transfer)
 {
-  stop = 1;
-  fclose(stdin);
+  transfer->stop = 1;
 }
 
-void print_available_radios()
+void gmsk_transfer_stop_all()
+{
+  stop = 1;
+}
+
+void gmsk_transfer_print_available_radios()
 {
   size_t size;
   unsigned int i;
@@ -832,7 +845,7 @@ void print_available_radios()
   SoapySDRKwargsList_clear(devices, size);
 }
 
-void print_available_forward_error_codes()
+void gmsk_transfer_print_available_forward_error_codes()
 {
   liquid_print_fec_schemes();
 }

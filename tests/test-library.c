@@ -66,8 +66,8 @@ int identical(char *message_file, char *decoded_file)
 
 int main()
 {
-  transfer_t send;
-  transfer_t receive;
+  gmsk_transfer_t send;
+  gmsk_transfer_t receive;
   char message[] = "This is a test transmission using gmsk-transfer.";
   char message_file[] = "/tmp/message.XXXXXX";
   int message_fd = mkstemp(message_file);
@@ -99,50 +99,50 @@ int main()
     return(EXIT_FAILURE);
   }
 
-  send = create_transfer("io",
-                         "",
-                         1,
-                         message_file,
-                         2000000,
-                         9600,
-                         434000000,
-                         0,
-                         0,
-                         0,
-                         "h128",
-                         "none",
-                         "",
-                         NULL);
+  send = gmsk_transfer_create("io",
+                              "",
+                              1,
+                              message_file,
+                              2000000,
+                              9600,
+                              434000000,
+                              0,
+                              0,
+                              0,
+                              "h128",
+                              "none",
+                              "",
+                              NULL);
   if(send == NULL)
   {
     fprintf(stderr, "Error: Failed to initialize transfer\n");
     return(EXIT_FAILURE);
   }
-  do_transfer(send);
-  free_transfer(send);
+  gmsk_transfer_start(send);
+  gmsk_transfer_free(send);
 
   lseek(samples_fd, 0, SEEK_SET);
-  receive = create_transfer("io",
-                            "",
-                            0,
-                            decoded_file,
-                            2000000,
-                            9600,
-                            434000000,
-                            0,
-                            0,
-                            0,
-                            "h128",
-                            "none",
-                            "",
-                            NULL);
+  receive = gmsk_transfer_create("io",
+                                 "",
+                                 0,
+                                 decoded_file,
+                                 2000000,
+                                 9600,
+                                 434000000,
+                                 0,
+                                 0,
+                                 0,
+                                 "h128",
+                                 "none",
+                                 "",
+                                 NULL);
   if(receive == NULL)
   {
     fprintf(stderr, "Error: Failed to initialize transfer\n");
     return(EXIT_FAILURE);
   }
-  do_transfer(receive);
-  free_transfer(receive);
+  gmsk_transfer_start(receive);
+  gmsk_transfer_free(receive);
 
   ok = identical(message_file, decoded_file);
   unlink(message_file);

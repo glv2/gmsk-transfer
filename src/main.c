@@ -27,7 +27,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 void signal_handler(int signum)
 {
-  if(is_verbose())
+  if(gmsk_transfer_is_verbose())
   {
     fprintf(stderr, "\nStopping (signal %d)\n", signum);
   }
@@ -35,7 +35,7 @@ void signal_handler(int signum)
   {
     fprintf(stderr, "\n");
   }
-  interrupt_transfer();
+  gmsk_transfer_stop_all();
 }
 
 void usage()
@@ -91,10 +91,10 @@ void usage()
   printf("(32 bits for the real part, 32 bits for the imaginary part).\n");
   printf("\n");
   printf("Available radios (via SoapySDR):\n");
-  print_available_radios();
+  gmsk_transfer_print_available_radios();
   printf("\n");
   printf("Available forward error correction codes:\n");
-  print_available_forward_error_codes();
+  gmsk_transfer_print_available_forward_error_codes();
 }
 
 void get_fec_schemes(char *str, char *inner_fec, char *outer_fec)
@@ -137,7 +137,7 @@ void get_fec_schemes(char *str, char *inner_fec, char *outer_fec)
 
 int main(int argc, char **argv)
 {
-  transfer_t transfer;
+  gmsk_transfer_t transfer;
   char *radio_type = "soapysdr";
   char *radio_driver = "";
   unsigned int emit = 0;
@@ -210,7 +210,7 @@ int main(int argc, char **argv)
       break;
 
     case 'v':
-      set_verbose(1);
+      gmsk_transfer_set_verbose(1);
       break;
 
     default:
@@ -231,29 +231,29 @@ int main(int argc, char **argv)
   signal(SIGTERM, &signal_handler);
   signal(SIGABRT, &signal_handler);
 
-  transfer = create_transfer(radio_type,
-                             radio_driver,
-                             emit,
-                             file,
-                             sample_rate,
-                             bit_rate,
-                             frequency,
-                             frequency_offset,
-                             gain,
-                             ppm,
-                             inner_fec,
-                             outer_fec,
-                             id,
-                             dump);
+  transfer = gmsk_transfer_create(radio_type,
+                                  radio_driver,
+                                  emit,
+                                  file,
+                                  sample_rate,
+                                  bit_rate,
+                                  frequency,
+                                  frequency_offset,
+                                  gain,
+                                  ppm,
+                                  inner_fec,
+                                  outer_fec,
+                                  id,
+                                  dump);
   if(transfer == NULL)
   {
     fprintf(stderr, "Error: Failed to initialize transfer\n");
     return(EXIT_FAILURE);
   }
-  do_transfer(transfer);
-  free_transfer(transfer);
+  gmsk_transfer_start(transfer);
+  gmsk_transfer_free(transfer);
 
-  if(is_verbose())
+  if(gmsk_transfer_is_verbose())
   {
     fprintf(stderr, "\n");
   }

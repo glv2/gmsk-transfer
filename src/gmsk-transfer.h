@@ -21,28 +21,29 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #ifndef GMSK_TRANSFER_H
 #define GMSK_TRANSFER_H
 
-typedef struct transfer_s *transfer_t;
+typedef struct gmsk_transfer_s *gmsk_transfer_t;
 
-void set_verbose(unsigned char v);
-unsigned char is_verbose();
-transfer_t create_transfer(char *radio_type,
-                           char *radio_driver,
-                           unsigned char emit,
-                           char *file,
-                           unsigned long int sample_rate,
-                           unsigned int bit_rate,
-                           unsigned long int frequency,
-                           long int frequency_offset,
-                           unsigned int gain,
-                           float ppm,
-                           char *inner_fec,
-                           char *outer_fec,
-                           char *id,
-                           char *dump);
-void free_transfer(transfer_t transfer);
-void do_transfer(transfer_t transfer);
-void interrupt_transfer();
-void print_available_radios();
-void print_available_forward_error_codes();
+void gmsk_transfer_set_verbose(unsigned char v);
+unsigned char gmsk_transfer_is_verbose();
+gmsk_transfer_t gmsk_transfer_create(char *radio_type,
+                                     char *radio_driver,
+                                     unsigned char emit,
+                                     char *file,
+                                     unsigned long int sample_rate,
+                                     unsigned int bit_rate,
+                                     unsigned long int frequency,
+                                     long int frequency_offset,
+                                     unsigned int gain,
+                                     float ppm,
+                                     char *inner_fec,
+                                     char *outer_fec,
+                                     char *id,
+                                     char *dump);
+void gmsk_transfer_free(gmsk_transfer_t transfer);
+void gmsk_transfer_start(gmsk_transfer_t transfer);
+void gmsk_transfer_stop(gmsk_transfer_t transfer);
+void gmsk_transfer_stop_all();
+void gmsk_transfer_print_available_radios();
+void gmsk_transfer_print_available_forward_error_codes();
 
 #endif
