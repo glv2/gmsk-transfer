@@ -138,7 +138,6 @@ void get_fec_schemes(char *str, char *inner_fec, char *outer_fec)
 int main(int argc, char **argv)
 {
   gmsk_transfer_t transfer;
-  char *radio_type = "soapysdr";
   char *radio_driver = "";
   unsigned int emit = 0;
   unsigned long int sample_rate = 2000000;
@@ -198,7 +197,7 @@ int main(int argc, char **argv)
       break;
 
     case 'r':
-      radio_type = optarg;
+      radio_driver = optarg;
       break;
 
     case 's':
@@ -231,8 +230,7 @@ int main(int argc, char **argv)
   signal(SIGTERM, &signal_handler);
   signal(SIGABRT, &signal_handler);
 
-  transfer = gmsk_transfer_create(radio_type,
-                                  radio_driver,
+  transfer = gmsk_transfer_create(radio_driver,
                                   emit,
                                   file,
                                   sample_rate,

@@ -100,7 +100,6 @@ int main()
   }
 
   send = gmsk_transfer_create("io",
-                              "",
                               1,
                               message_file,
                               2000000,
@@ -123,7 +122,6 @@ int main()
 
   lseek(samples_fd, 0, SEEK_SET);
   receive = gmsk_transfer_create("io",
-                                 "",
                                  0,
                                  decoded_file,
                                  2000000,

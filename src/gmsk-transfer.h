@@ -25,8 +25,7 @@ typedef struct gmsk_transfer_s *gmsk_transfer_t;
 
 void gmsk_transfer_set_verbose(unsigned char v);
 unsigned char gmsk_transfer_is_verbose();
-gmsk_transfer_t gmsk_transfer_create(char *radio_type,
-                                     char *radio_driver,
+gmsk_transfer_t gmsk_transfer_create(char *radio_driver,
                                      unsigned char emit,
                                      char *file,
                                      unsigned long int sample_rate,

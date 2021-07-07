@@ -467,8 +467,7 @@ void receive_frames(gmsk_transfer_t transfer)
   unsigned int n;
   /* Process data by blocks of 50 ms */
   unsigned int frame_samples_size = (transfer->bit_rate * SAMPLES_PER_SYMBOL) / 20;
-  unsigned int samples_size = (unsigned int) floorf(frame_samples_size /
-                                                    resampling_ratio) + delay;
+  unsigned int samples_size = floorf(frame_samples_size / resampling_ratio) + delay;
   nco_crcf oscillator = nco_crcf_create(LIQUID_NCO);
   complex float *frame_samples = malloc((frame_samples_size + delay) *
                                         sizeof(complex float));
@@ -517,8 +516,7 @@ void receive_frames(gmsk_transfer_t transfer)
   gmskframesync_destroy(frame_synchronizer);
 }
 
-gmsk_transfer_t gmsk_transfer_create(char *radio_type,
-                                     char *radio_driver,
+gmsk_transfer_t gmsk_transfer_create(char *radio_driver,
                                      unsigned char emit,
                                      char *file,
                                      unsigned long int sample_rate,
@@ -543,7 +541,7 @@ gmsk_transfer_t gmsk_transfer_create(char *radio_type,
   }
   bzero(transfer, sizeof(gmsk_transfer_t));
 
-  if(strcasecmp(radio_type, "io") == 0)
+  if(strcasecmp(radio_driver, "io") == 0)
   {
     transfer->radio_type = IO;
   }
