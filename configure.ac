@@ -1,4 +1,4 @@
-AC_INIT(gmsk-transfer, 1.0.1)
+AC_INIT(gmsk-transfer, 1.1.0)
 AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR(src/gmsk-transfer.c)
 AC_CONFIG_MACRO_DIRS([m4])
