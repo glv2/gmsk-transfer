@@ -750,6 +750,7 @@ void gmsk_transfer_start(gmsk_transfer_t transfer)
 {
   stop = 0;
   transfer->stop = 0;
+
   switch(transfer->radio_type)
   {
   case IO:
@@ -757,39 +758,27 @@ void gmsk_transfer_start(gmsk_transfer_t transfer)
     {
       fprintf(stderr, "Info: Using IO pseudo-radio\n");
     }
-    if(transfer->emit)
-    {
-      send_frames(transfer);
-    }
-    else
-    {
-      receive_frames(transfer);
-    }
     break;
 
   case SOAPYSDR:
-    if(transfer->emit)
-    {
-      SoapySDRDevice_activateStream(transfer->radio_device.soapysdr,
-                                    transfer->radio_stream.soapysdr,
-                                    0,
-                                    0,
-                                    0);
-      send_frames(transfer);
-    }
-    else
-    {
-      SoapySDRDevice_activateStream(transfer->radio_device.soapysdr,
-                                    transfer->radio_stream.soapysdr,
-                                    0,
-                                    0,
-                                    0);
-      receive_frames(transfer);
-    }
+    SoapySDRDevice_activateStream(transfer->radio_device.soapysdr,
+                                  transfer->radio_stream.soapysdr,
+                                  0,
+                                  0,
+                                  0);
     break;
 
   default:
-    break;
+    return;
+  }
+
+  if(transfer->emit)
+  {
+    send_frames(transfer);
+  }
+  else
+  {
+    receive_frames(transfer);
   }
 }
 
