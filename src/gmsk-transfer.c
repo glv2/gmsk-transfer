@@ -331,7 +331,7 @@ void send_frames(gmsk_transfer_t transfer)
 
   while((!stop) && (!transfer->stop))
   {
-    r = transfer->data_callback(transfer, payload, payload_size);
+    r = transfer->data_callback(transfer->callback_context, payload, payload_size);
     if(r < 0)
     {
       break;
@@ -459,7 +459,7 @@ int frame_received(unsigned char *header,
   }
   else
   {
-    transfer->data_callback(transfer, payload, payload_size);
+    transfer->data_callback(transfer->callback_context, payload, payload_size);
   }
   return(0);
 }
