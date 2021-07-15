@@ -8,7 +8,7 @@
 (define gmsk-transfer
   (package
     (name "gmsk-transfer")
-    (version "1.1.0")
+    (version "1.2.0")
     (source
      (origin
        (method git-fetch)
@@ -17,7 +17,7 @@
              (commit (string-append "v" version))))
        (file-name (git-file-name name version))
        (sha256
-        (base32 "0hspp4mi23i78l1z3n5qrx3gwnn1qiahlh2xdlsn15sp9mikcqqf"))))
+        (base32 "1czknimm7zyxx14sabr4pn4yvsak1v6vac8ik1h5mnv1vayhnz2s"))))
     (build-system gnu-build-system)
     (native-inputs
      `(("autoconf" ,autoconf)
