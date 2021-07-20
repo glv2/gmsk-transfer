@@ -490,7 +490,7 @@ void receive_frames(gmsk_transfer_t transfer)
   unsigned int n;
   /* Process data by blocks of 50 ms */
   unsigned int frame_samples_size = (transfer->bit_rate * SAMPLES_PER_SYMBOL) / 20;
-  unsigned int samples_size = floorf(frame_samples_size / resampling_ratio) + delay;
+  unsigned int samples_size = floorf(frame_samples_size / resampling_ratio);
   nco_crcf oscillator = nco_crcf_create(LIQUID_NCO);
   complex float *frame_samples = malloc((frame_samples_size + delay) *
                                         sizeof(complex float));
