@@ -309,7 +309,7 @@ void send_dummy_samples(gmsk_transfer_t transfer,
 
 void send_frames(gmsk_transfer_t transfer)
 {
-  gmskframegen frame_generator = gmskframegen_create();
+  gmskframegen frame_generator = gmskframegen_create(2, 3, BT);
   float resampling_ratio = (float) transfer->sample_rate / (transfer->bit_rate *
                                                             SAMPLES_PER_SYMBOL);
   msresamp_crcf resampler = msresamp_crcf_create(resampling_ratio, 60);
@@ -482,7 +482,11 @@ int frame_received(unsigned char *header,
 
 void receive_frames(gmsk_transfer_t transfer)
 {
-  gmskframesync frame_synchronizer = gmskframesync_create(frame_received, transfer);
+  gmskframesync frame_synchronizer = gmskframesync_create(2,
+                                                          3,
+                                                          BT,
+                                                          frame_received,
+                                                          transfer);
   float resampling_ratio = (transfer->bit_rate *
                             SAMPLES_PER_SYMBOL) / (float) transfer->sample_rate;
   msresamp_crcf resampler = msresamp_crcf_create(resampling_ratio, 60);
