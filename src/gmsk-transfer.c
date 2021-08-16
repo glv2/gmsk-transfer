@@ -32,8 +32,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "gmsk-transfer.h"
 
 #define TAU (2 * M_PI)
-#define SAMPLES_PER_SYMBOL 2
-#define BT 0.5
 
 #define SOAPYSDR_CHECK(funcall) \
 { \
@@ -74,6 +72,7 @@ struct gmsk_transfer_s
   unsigned int bit_rate;
   unsigned long int frequency;
   long int frequency_offset;
+  float bt;
   crc_scheme crc;
   fec_scheme inner_fec;
   fec_scheme outer_fec;
@@ -309,9 +308,14 @@ void send_dummy_samples(gmsk_transfer_t transfer,
 
 void send_frames(gmsk_transfer_t transfer)
 {
-  gmskframegen frame_generator = gmskframegen_create(2, 3, BT);
+  float bt = transfer->bt;
+  unsigned int samples_per_symbol = ceilf(1 / bt);
+  unsigned int filter_delay = samples_per_symbol + 1;
+  gmskframegen frame_generator = gmskframegen_create(samples_per_symbol,
+                                                     filter_delay,
+                                                     bt);
   float resampling_ratio = (float) transfer->sample_rate / (transfer->bit_rate *
-                                                            SAMPLES_PER_SYMBOL);
+                                                            samples_per_symbol);
   msresamp_crcf resampler = msresamp_crcf_create(resampling_ratio, 60);
   unsigned int delay = ceilf(msresamp_crcf_get_delay(resampler));
   unsigned int header_size = 8;
@@ -321,7 +325,7 @@ void send_frames(gmsk_transfer_t transfer)
   unsigned int n;
   unsigned int i;
   /* Process data by blocks of 50 ms */
-  unsigned int frame_samples_size = (transfer->bit_rate * SAMPLES_PER_SYMBOL) / 20;
+  unsigned int frame_samples_size = (transfer->bit_rate * samples_per_symbol) / 20;
   unsigned int samples_size = ceilf((frame_samples_size + delay) * resampling_ratio);
   int frame_complete;
   float center_frequency = (float) transfer->frequency_offset / transfer->sample_rate;
@@ -369,8 +373,8 @@ void send_frames(gmsk_transfer_t transfer)
       {
         frame_complete = gmskframegen_write_samples(frame_generator,
                                                     &frame_samples[n]);
-        n += SAMPLES_PER_SYMBOL;
-        if(frame_complete || (n + SAMPLES_PER_SYMBOL > frame_samples_size))
+        n += samples_per_symbol;
+        if(frame_complete || (n + samples_per_symbol > frame_samples_size))
         {
           /* Reduce the amplitude of samples a little because the resampler
            * may produce samples with an amplitude slightly greater than 1.0
@@ -482,18 +486,21 @@ int frame_received(unsigned char *header,
 
 void receive_frames(gmsk_transfer_t transfer)
 {
-  gmskframesync frame_synchronizer = gmskframesync_create(2,
-                                                          3,
-                                                          BT,
+  float bt = transfer->bt;
+  unsigned int samples_per_symbol = ceilf(1 / bt);
+  unsigned int filter_delay = samples_per_symbol + 1;
+  gmskframesync frame_synchronizer = gmskframesync_create(samples_per_symbol,
+                                                          filter_delay,
+                                                          bt,
                                                           frame_received,
                                                           transfer);
   float resampling_ratio = (transfer->bit_rate *
-                            SAMPLES_PER_SYMBOL) / (float) transfer->sample_rate;
+                            samples_per_symbol) / (float) transfer->sample_rate;
   msresamp_crcf resampler = msresamp_crcf_create(resampling_ratio, 60);
   unsigned int delay = ceilf(msresamp_crcf_get_delay(resampler));
   unsigned int n;
   /* Process data by blocks of 50 ms */
-  unsigned int frame_samples_size = (transfer->bit_rate * SAMPLES_PER_SYMBOL) / 20;
+  unsigned int frame_samples_size = (transfer->bit_rate * samples_per_symbol) / 20;
   unsigned int samples_size = floorf(frame_samples_size / resampling_ratio);
   nco_crcf oscillator = nco_crcf_create(LIQUID_NCO);
   complex float *frame_samples = malloc((frame_samples_size + delay) *
@@ -556,6 +563,7 @@ gmsk_transfer_t gmsk_transfer_create_callback(char *radio_driver,
                                               long int frequency_offset,
                                               unsigned int gain,
                                               float ppm,
+                                              float bt,
                                               char *inner_fec,
                                               char *outer_fec,
                                               char *id,
@@ -625,6 +633,7 @@ gmsk_transfer_t gmsk_transfer_create_callback(char *radio_driver,
     return(NULL);
   }
 
+  transfer->bt = bt;
   transfer->crc = LIQUID_CRC_32;
 
   transfer->inner_fec = liquid_getopt_str2fec(inner_fec);
@@ -747,6 +756,7 @@ gmsk_transfer_t gmsk_transfer_create(char *radio_driver,
                                      long int frequency_offset,
                                      unsigned int gain,
                                      float ppm,
+                                     float bt,
                                      char *inner_fec,
                                      char *outer_fec,
                                      char *id,
@@ -765,6 +775,7 @@ gmsk_transfer_t gmsk_transfer_create(char *radio_driver,
                                            frequency_offset,
                                            gain,
                                            ppm,
+                                           bt,
                                            inner_fec,
                                            outer_fec,
                                            id,

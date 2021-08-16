@@ -45,6 +45,7 @@ unsigned char gmsk_transfer_is_verbose();
  *    frequency higher)
  *  - gain: gain of the radio transceiver
  *  - ppm: correction for the radio clock
+ *  - bt: bandwidth-time parameter of the Gaussian filter
  *  - inner_fec: inner forward error correction code to use
  *  - outer_fec: outer forward error correction code to use
  *  - id: transfer id; when receiving, frames with a different id will be
@@ -60,6 +61,7 @@ gmsk_transfer_t gmsk_transfer_create(char *radio_driver,
                                      long int frequency_offset,
                                      unsigned int gain,
                                      float ppm,
+                                     float bt,
                                      char *inner_fec,
                                      char *outer_fec,
                                      char *id,
@@ -97,6 +99,7 @@ gmsk_transfer_t gmsk_transfer_create_callback(char *radio_driver,
                                               long int frequency_offset,
                                               unsigned int gain,
                                               float ppm,
+                                              float bt,
                                               char *inner_fec,
                                               char *outer_fec,
                                               char *id,

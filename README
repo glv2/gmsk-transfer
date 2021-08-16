@@ -2,7 +2,7 @@ gmsk-transfer
 =============
 
 gmsk-transfer is a command-line program to send or receive data by software
-defined radio using the GMSK modulation (with a BT parameter of 0.5).
+defined radio using the GMSK modulation.
 
 
 ## Usage
@@ -28,6 +28,8 @@ Options:
   -i <id>  (default: "")
     Transfer id (at most 4 bytes). When receiving, the frames
     with a different id will be ignored.
+  -n <bt>  (default: 0.5)
+    Bandwidth-time parameter of the GMSK modulation.
   -o <offset>  (default: 0 Hz, can be negative)
     Set the central frequency of the transceiver 'offset' Hz
     lower than the signal frequency to send or receive.

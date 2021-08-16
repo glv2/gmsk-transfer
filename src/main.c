@@ -63,6 +63,8 @@ void usage()
   printf("  -i <id>  (default: \"\")\n");
   printf("    Transfer id (at most 4 bytes). When receiving, the frames\n");
   printf("    with a different id will be ignored.\n");
+  printf("  -n <bt>  (default: 0.5)\n");
+  printf("    Bandwidth-time parameter of the GMSK modulation.\n");
   printf("  -o <offset>  (default: 0 Hz, can be negative)\n");
   printf("    Set the central frequency of the transceiver 'offset' Hz\n");
   printf("    lower than the signal frequency to send or receive.\n");
@@ -149,6 +151,7 @@ int main(int argc, char **argv)
   long int frequency_offset = 0;
   unsigned int gain = 0;
   float ppm = 0;
+  float bt = 0.5;
   char inner_fec[32];
   char outer_fec[32];
   char *id = "";
@@ -159,7 +162,7 @@ int main(int argc, char **argv)
   strcpy(inner_fec, "h128");
   strcpy(outer_fec, "none");
 
-  while((opt = getopt(argc, argv, "b:c:d:e:f:g:hi:o:r:s:tv")) != -1)
+  while((opt = getopt(argc, argv, "b:c:d:e:f:g:hi:n:o:r:s:tv")) != -1)
   {
     switch(opt)
     {
@@ -193,6 +196,10 @@ int main(int argc, char **argv)
 
     case 'i':
       id = optarg;
+      break;
+
+    case 'n':
+      bt = strtof(optarg, NULL);
       break;
 
     case 'o':
@@ -242,6 +249,7 @@ int main(int argc, char **argv)
                                   frequency_offset,
                                   gain,
                                   ppm,
+                                  bt,
                                   inner_fec,
                                   outer_fec,
                                   id,
