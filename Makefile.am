@@ -11,6 +11,12 @@ gmsk_transfer_LDADD = libgmsk-transfer.la
 
 include_HEADERS = src/gmsk-transfer.h
 
+examplesdir =
+examples_PROGRAMS = examples/echo-server
+examples_echo_server_SOURCES = examples/echo-server.c
+examples_echo_server_CFLAGS = -I src
+examples_echo_server_LDADD = libgmsk-transfer.la
+
 check_PROGRAMS = tests/test-library-callback tests/test-library-file
 tests_test_library_callback_SOURCES = tests/test-library-callback.c
 tests_test_library_callback_CFLAGS = -I src

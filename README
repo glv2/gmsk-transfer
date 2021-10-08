@@ -126,3 +126,6 @@ library, the following codes should also be available:
 You can add GMSK transfer support to your programs easily by using the
 'libgmsk-transfer' library.
 The API is described in the 'gmsk-transfer.h' file.
+
+The 'echo-server' example program shows how to use the API to make a server
+receiving messages from clients and sending them back in reverse order.
