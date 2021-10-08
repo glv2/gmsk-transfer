@@ -51,6 +51,8 @@ unsigned char gmsk_transfer_is_verbose();
  *  - id: transfer id; when receiving, frames with a different id will be
  *        ignored
  *  - dump: if not NULL, write raw samples sent or received to this file
+ *
+ * If the transfer initialization fails, the function returns NULL.
  */
 gmsk_transfer_t gmsk_transfer_create(char *radio_driver,
                                      unsigned char emit,
