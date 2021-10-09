@@ -190,11 +190,11 @@ void signal_handler(int signum)
   stop_loop = 1;
 }
 
-void usage(unsigned char *program)
+void usage()
 {
   fprintf(stderr, "Usage:\n");
-  fprintf(stderr, "  %s server <frequency>\n", program);
-  fprintf(stderr, "  %s client <frequency> <message>\n", program);
+  fprintf(stderr, "  echo-server server <frequency>\n");
+  fprintf(stderr, "  echo-server client <frequency> <message>\n");
 }
 
 int main(int argc, char **argv)
@@ -205,7 +205,7 @@ int main(int argc, char **argv)
 
   if((argc != 3) && (argc != 4))
   {
-    usage(argv[0]);
+    usage();
     return(-1);
   }
 
@@ -220,7 +220,7 @@ int main(int argc, char **argv)
   {
     if(argc !=4)
     {
-      usage(argv[0]);
+      usage();
       return(-1);
     }
     data = argv[3];
@@ -232,7 +232,7 @@ int main(int argc, char **argv)
   }
   else
   {
-    usage(argv[0]);
+    usage();
     return(-1);
   }
   return(1);
