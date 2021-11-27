@@ -368,42 +368,42 @@ void send_frames(gmsk_transfer_t transfer)
                             transfer->inner_fec,
                             transfer->outer_fec);
       frame_complete = 0;
-      n = 0;
       while(!frame_complete)
       {
-        frame_complete = gmskframegen_write_samples(frame_generator,
-                                                    &frame_samples[n]);
-        n += samples_per_symbol;
-        if(frame_complete || (n + samples_per_symbol > frame_samples_size))
+        frame_complete = gmskframegen_write(frame_generator,
+                                            frame_samples,
+                                            frame_samples_size);
+        /* Don't send the padding 0 bytes */
+        for(n = frame_samples_size; n > 0; n--)
         {
-          /* Reduce the amplitude of samples a little because the resampler
-           * may produce samples with an amplitude slightly greater than 1.0
-           * otherwise */
-          for(i = 0; i < n; i++)
+          if(frame_samples[n - 1] != 0)
           {
-            if(cabsf(frame_samples[i]) > maximum_amplitude)
-            {
-              maximum_amplitude = cabsf(frame_samples[i]);
-            }
-          }
-          liquid_vectorcf_mulscalar(frame_samples,
-                                    n,
-                                    0.9 / maximum_amplitude,
-                                    frame_samples);
-          msresamp_crcf_execute(resampler, frame_samples, n, samples, &n);
-          if(transfer->frequency_offset != 0)
-          {
-            nco_crcf_mix_block_up(oscillator, samples, samples, n);
-          }
-          send_to_radio(transfer, samples, n, 0);
-          n = 0;
-          if(frame_complete)
-          {
-            counter++;
-            set_counter(header, counter);
+            break;
           }
         }
+        /* Reduce the amplitude of samples a little because the resampler
+         * may produce samples with an amplitude slightly greater than 1.0
+         * otherwise */
+        for(i = 0; i < n; i++)
+        {
+          if(cabsf(frame_samples[i]) > maximum_amplitude)
+          {
+            maximum_amplitude = cabsf(frame_samples[i]);
+          }
+        }
+        liquid_vectorcf_mulscalar(frame_samples,
+                                  n,
+                                  0.9 / maximum_amplitude,
+                                  frame_samples);
+        msresamp_crcf_execute(resampler, frame_samples, n, samples, &n);
+        if(transfer->frequency_offset != 0)
+        {
+          nco_crcf_mix_block_up(oscillator, samples, samples, n);
+        }
+        send_to_radio(transfer, samples, n, 0);
       }
+      counter++;
+      set_counter(header, counter);
     }
     else
     {
