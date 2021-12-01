@@ -384,6 +384,7 @@ void send_frames(gmsk_transfer_t transfer)
         /* Reduce the amplitude of samples a little because the resampler
          * may produce samples with an amplitude slightly greater than 1.0
          * otherwise */
+        maximum_amplitude = 1;
         for(i = 0; i < n; i++)
         {
           if(cabsf(frame_samples[i]) > maximum_amplitude)
@@ -393,7 +394,7 @@ void send_frames(gmsk_transfer_t transfer)
         }
         liquid_vectorcf_mulscalar(frame_samples,
                                   n,
-                                  0.9 / maximum_amplitude,
+                                  0.75 / maximum_amplitude,
                                   frame_samples);
         msresamp_crcf_execute(resampler, frame_samples, n, samples, &n);
         if(transfer->frequency_offset != 0)
