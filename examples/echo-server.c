@@ -86,6 +86,7 @@ void transmit(unsigned char *data,
     return;
   }
   gmsk_transfer_start(transfer);
+  sleep(1); /* Give time to the hackrf to send the last samples */
   gmsk_transfer_free(transfer);
 }
 
@@ -162,7 +163,7 @@ void server(unsigned long int frequency)
     printf("\nReceived: %s\n", data);
     process_request(data, size);
     printf("Sending: %s\n", data);
-    usleep(500000);
+    sleep(1);
     if(stop_loop)
     {
       return;
