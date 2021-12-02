@@ -260,6 +260,7 @@ int main(int argc, char **argv)
     return(EXIT_FAILURE);
   }
   gmsk_transfer_start(transfer);
+  usleep(500000);
   gmsk_transfer_free(transfer);
 
   if(gmsk_transfer_is_verbose())
