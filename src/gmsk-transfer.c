@@ -28,6 +28,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <time.h>
 #include <unistd.h>
 #include "gmsk-transfer.h"
 
@@ -81,6 +82,8 @@ struct gmsk_transfer_s
   unsigned char stop;
   int (*data_callback)(void *, unsigned char *, unsigned int);
   void *callback_context;
+  unsigned int timeout;
+  time_t timeout_start;
 };
 
 unsigned char stop = 0;
@@ -448,6 +451,7 @@ int frame_received(unsigned char *header,
   char id[5];
   unsigned int counter;
 
+  transfer->timeout_start = time(NULL);
   memcpy(id, header, 4);
   id[4] = '\0';
   counter = get_counter(header);
@@ -523,6 +527,15 @@ void receive_frames(gmsk_transfer_t transfer)
     {
       break;
     }
+    if((transfer->timeout > 0) &&
+       (time(NULL) > transfer->timeout_start + transfer->timeout))
+    {
+      if(verbose)
+      {
+        fprintf(stderr, "Timeout: %d s without frames\n", transfer->timeout);
+      }
+      break;
+    }
     if(transfer->dump)
     {
       dump_samples(transfer, samples, n);
@@ -565,7 +578,8 @@ gmsk_transfer_t gmsk_transfer_create_callback(char *radio_driver,
                                               char *inner_fec,
                                               char *outer_fec,
                                               char *id,
-                                              char *dump)
+                                              char *dump,
+                                              unsigned int timeout)
 {
   int direction;
   gmsk_transfer_t transfer = malloc(sizeof(struct gmsk_transfer_s));
@@ -676,6 +690,8 @@ gmsk_transfer_t gmsk_transfer_create_callback(char *radio_driver,
     transfer->dump = NULL;
   }
 
+  transfer->timeout = timeout;
+
   switch(transfer->radio_type)
   {
   case IO:
@@ -758,7 +774,8 @@ gmsk_transfer_t gmsk_transfer_create(char *radio_driver,
                                      char *inner_fec,
                                      char *outer_fec,
                                      char *id,
-                                     char *dump)
+                                     char *dump,
+                                     unsigned int timeout)
 {
   int flags;
   gmsk_transfer_t transfer;
@@ -777,7 +794,8 @@ gmsk_transfer_t gmsk_transfer_create(char *radio_driver,
                                            inner_fec,
                                            outer_fec,
                                            id,
-                                           dump);
+                                           dump,
+                                           timeout);
   if(transfer == NULL)
   {
     return(NULL);
@@ -889,6 +907,7 @@ void gmsk_transfer_start(gmsk_transfer_t transfer)
     return;
   }
 
+  transfer->timeout_start = time(NULL);
   if(transfer->emit)
   {
     send_frames(transfer);
