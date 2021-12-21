@@ -505,7 +505,7 @@ void receive_frames(gmsk_transfer_t transfer)
   float resampling_ratio = (transfer->bit_rate *
                             samples_per_symbol) / (float) transfer->sample_rate;
   msresamp_crcf resampler = msresamp_crcf_create(resampling_ratio, 60);
-  unsigned int delay = ceilf(msresamp_crcf_get_delay(resampler));
+  unsigned int delay = filter_delay + ceilf(msresamp_crcf_get_delay(resampler));
   unsigned int n;
   /* Process data by blocks of 50 ms */
   unsigned int frame_samples_size = (transfer->bit_rate * samples_per_symbol) / 20;
@@ -513,7 +513,8 @@ void receive_frames(gmsk_transfer_t transfer)
   nco_crcf oscillator = nco_crcf_create(LIQUID_NCO);
   complex float *frame_samples = malloc((frame_samples_size + delay) *
                                         sizeof(complex float));
-  complex float *samples = malloc(samples_size * sizeof(complex float));
+  complex float *samples = malloc((samples_size + delay) *
+                                  sizeof(complex float));
 
   if((frame_samples == NULL) || (samples == NULL))
   {
