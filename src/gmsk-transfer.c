@@ -287,23 +287,30 @@ unsigned int get_counter(unsigned char *header)
 void send_dummy_samples(gmsk_transfer_t transfer,
                         msresamp_crcf resampler,
                         nco_crcf oscillator,
-                        complex float *frame_samples,
-                        unsigned int frame_samples_size,
                         complex float *samples,
+                        unsigned int delay,
                         int last)
 {
+  unsigned int i;
   unsigned int n;
+  complex float zero_sample = 0;
 
-  for(n = 0; n < frame_samples_size; n++)
+  for(i = 0; i < delay; i++)
   {
-    frame_samples[n] = 0;
+    msresamp_crcf_execute(resampler, &zero_sample, 1, samples, &n);
+    if(transfer->frequency_offset != 0)
+    {
+      nco_crcf_mix_block_up(oscillator, samples, samples, n);
+    }
+    if(i + 1 < delay)
+    {
+      send_to_radio(transfer, samples, n, 0);
+    }
+    else
+    {
+      send_to_radio(transfer, samples, n, last);
+    }
   }
-  msresamp_crcf_execute(resampler, frame_samples, frame_samples_size, samples, &n);
-  if(transfer->frequency_offset != 0)
-  {
-    nco_crcf_mix_block_up(oscillator, samples, samples, n);
-  }
-  send_to_radio(transfer, samples, n, last);
 }
 
 void send_frames(gmsk_transfer_t transfer)
@@ -421,9 +428,8 @@ void send_frames(gmsk_transfer_t transfer)
       send_dummy_samples(transfer,
                          resampler,
                          oscillator,
-                         frame_samples,
-                         frame_samples_size,
                          samples,
+                         delay + filter_delay,
                          0);
     }
   }
@@ -433,9 +439,8 @@ void send_frames(gmsk_transfer_t transfer)
   send_dummy_samples(transfer,
                      resampler,
                      oscillator,
-                     frame_samples,
-                     frame_samples_size,
                      samples,
+                     delay + filter_delay,
                      1);
 
   free(samples);
