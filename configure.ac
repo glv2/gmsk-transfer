@@ -1,4 +1,4 @@
-AC_INIT(gmsk-transfer, 1.3.0)
+AC_INIT(gmsk-transfer, 1.4.0)
 AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR(src/gmsk-transfer.c)
 AC_CONFIG_MACRO_DIRS([m4])
@@ -24,7 +24,7 @@ AC_CHECK_HEADERS(math.h, [], AC_MSG_ERROR([math headers required]))
 AC_CHECK_LIB(m, ceilf, [], AC_MSG_ERROR([math library required]))
 
 AC_CHECK_HEADERS(liquid/liquid.h, [], AC_MSG_ERROR([liquid-dsp header required]))
-AC_CHECK_LIB(liquid, gmskframegen_create, [], AC_MSG_ERROR([liquid-dsp library required]))
+AC_CHECK_LIB(liquid, gmskframegen_create_set, [], AC_MSG_ERROR([liquid-dsp library required]))
 
 AC_CHECK_HEADERS(SoapySDR/Device.h, [], AC_MSG_ERROR([SoapySDR header required]))
 AC_CHECK_LIB(SoapySDR, SoapySDRDevice_make, [], AC_MSG_ERROR([SoapySDR library required]))
