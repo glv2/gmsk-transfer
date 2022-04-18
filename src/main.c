@@ -46,6 +46,8 @@ void usage()
   printf("Usage: gmsk-transfer [options] [filename]\n");
   printf("\n");
   printf("Options:\n");
+  printf("  -a\n");
+  printf("    Use audio samples instead of IQ samples.\n");
   printf("  -b <bit rate>  (default: 9600 b/s)\n");
   printf("    Bit rate of the GMSK transmission.\n");
   printf("  -c <ppm>  (default: 0.0, can be negative)\n");
@@ -100,8 +102,9 @@ void usage()
   printf("'transmit' mode.\n");
   printf("The 'file=path-to-file' radio type reads/writes the samples\n");
   printf("from/to 'path-to-file'.\n");
-  printf("The samples must be in 'complex float' format\n");
+  printf("The IQ samples must be in 'complex float' format\n");
   printf("(32 bits for the real part, 32 bits for the imaginary part).\n");
+  printf("The audio samples must be in 'signed integer' format (16 bits).\n");
   printf("\n");
   printf("Available radios (via SoapySDR):\n");
   gmsk_transfer_print_available_radios();
@@ -169,15 +172,20 @@ int main(int argc, char **argv)
   unsigned int final_delay_sec = 0;
   unsigned int final_delay_usec = 0;
   unsigned int timeout = 0;
+  unsigned char audio = 0;
   int opt;
 
   strcpy(inner_fec, "h128");
   strcpy(outer_fec, "none");
 
-  while((opt = getopt(argc, argv, "b:c:d:e:f:g:hi:n:o:r:s:T:tvw:")) != -1)
+  while((opt = getopt(argc, argv, "ab:c:d:e:f:g:hi:n:o:r:s:T:tvw:")) != -1)
   {
     switch(opt)
     {
+    case 'a':
+      audio = 1;
+      break;
+
     case 'b':
       bit_rate = strtoul(optarg, NULL, 10);
       break;
@@ -274,7 +282,8 @@ int main(int argc, char **argv)
                                   outer_fec,
                                   id,
                                   dump,
-                                  timeout);
+                                  timeout,
+                                  audio);
   if(transfer == NULL)
   {
     fprintf(stderr, "Error: Failed to initialize transfer\n");
