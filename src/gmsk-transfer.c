@@ -31,6 +31,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <time.h>
 #include <unistd.h>
 #include "gmsk-transfer.h"
+#include "gmskframesync.h"
 
 #define TAU (2 * M_PI)
 
@@ -73,6 +74,7 @@ struct gmsk_transfer_s
   unsigned int bit_rate;
   unsigned long int frequency;
   long int frequency_offset;
+  unsigned int maximum_deviation;
   float bt;
   crc_scheme crc;
   fec_scheme inner_fec;
@@ -577,11 +579,13 @@ void receive_frames(gmsk_transfer_t transfer)
   float bt = transfer->bt;
   unsigned int samples_per_symbol = ceilf(1 / bt);
   unsigned int filter_delay = samples_per_symbol + 1;
-  gmskframesync frame_synchronizer = gmskframesync_create_set(samples_per_symbol,
-                                                              filter_delay,
-                                                              bt,
-                                                              frame_received,
-                                                              transfer);
+  float dphi_max = (TAU * transfer->maximum_deviation) / transfer->bit_rate;
+  gmskframesync frame_synchronizer = gmskframesync_create_set2(samples_per_symbol,
+                                                               filter_delay,
+                                                               bt,
+                                                               dphi_max,
+                                                               frame_received,
+                                                               transfer);
   float resampling_ratio = (transfer->bit_rate *
                             samples_per_symbol) / (float) transfer->sample_rate;
   msresamp_crcf resampler = msresamp_crcf_create(resampling_ratio, 60);
@@ -664,6 +668,7 @@ gmsk_transfer_t gmsk_transfer_create_callback(char *radio_driver,
                                               unsigned int bit_rate,
                                               unsigned long int frequency,
                                               long int frequency_offset,
+                                              unsigned int maximum_deviation,
                                               unsigned int gain,
                                               float ppm,
                                               float bt,
@@ -763,6 +768,22 @@ gmsk_transfer_t gmsk_transfer_create_callback(char *radio_driver,
   }
 
   transfer->bt = bt;
+
+  if(maximum_deviation == 0)
+  {
+    transfer->maximum_deviation = transfer->bit_rate / 100;
+  }
+  else if(maximum_deviation > (transfer->bit_rate / 2))
+  {
+    fprintf(stderr, "Error: Invalid maximum deviation (> bit rate / 2)\n");
+    free(transfer);
+    return(NULL);
+  }
+  else
+  {
+    transfer->maximum_deviation = maximum_deviation;
+  }
+
   transfer->crc = LIQUID_CRC_32;
 
   transfer->inner_fec = liquid_getopt_str2fec(inner_fec);
@@ -885,6 +906,7 @@ gmsk_transfer_t gmsk_transfer_create(char *radio_driver,
                                      unsigned int bit_rate,
                                      unsigned long int frequency,
                                      long int frequency_offset,
+                                     unsigned int maximum_deviation,
                                      unsigned int gain,
                                      float ppm,
                                      float bt,
@@ -906,6 +928,7 @@ gmsk_transfer_t gmsk_transfer_create(char *radio_driver,
                                            bit_rate,
                                            frequency,
                                            frequency_offset,
+                                           maximum_deviation,
                                            gain,
                                            ppm,
                                            bt,

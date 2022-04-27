@@ -44,6 +44,10 @@ Options:
     no frame has been received. A timeout of 0 means no timeout.
   -t
     Use transmit mode.
+  -u <maximum deviation>  (default: (bit rate / 100) Hz)
+    Maximum allowable deviation of the center frequency of a
+    received signal. If its deviation if greater, frames will
+    probably not be detected.
   -v
     Print debug messages.
   -w <delay>  (default: 0.0 s)

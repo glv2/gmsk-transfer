@@ -80,6 +80,10 @@ void usage()
   printf("    no frame has been received. A timeout of 0 means no timeout.\n");
   printf("  -t\n");
   printf("    Use transmit mode.\n");
+  printf("  -u <maximum deviation>  (default: (bit rate / 100) Hz)\n");
+  printf("    Maximum allowable deviation of the center frequency of a\n");
+  printf("    received signal. If its deviation if greater, frames will\n");
+  printf("    probably not be detected.\n");
   printf("  -v\n");
   printf("    Print debug messages.\n");
   printf("  -w <delay>  (default: 0.0 s)\n");
@@ -160,6 +164,7 @@ int main(int argc, char **argv)
   unsigned int bit_rate = 9600;
   unsigned long int frequency = 434000000;
   long int frequency_offset = 0;
+  unsigned int maximum_deviation = 0;
   unsigned int gain = 0;
   float ppm = 0;
   float bt = 0.5;
@@ -178,7 +183,7 @@ int main(int argc, char **argv)
   strcpy(inner_fec, "h128");
   strcpy(outer_fec, "none");
 
-  while((opt = getopt(argc, argv, "ab:c:d:e:f:g:hi:n:o:r:s:T:tvw:")) != -1)
+  while((opt = getopt(argc, argv, "ab:c:d:e:f:g:hi:n:o:r:s:T:tu:vw:")) != -1)
   {
     switch(opt)
     {
@@ -242,6 +247,10 @@ int main(int argc, char **argv)
       emit = 1;
       break;
 
+    case 'u':
+      maximum_deviation = strtoul(optarg, NULL, 10);
+      break;
+
     case 'v':
       gmsk_transfer_set_verbose(1);
       break;
@@ -275,6 +284,7 @@ int main(int argc, char **argv)
                                   bit_rate,
                                   frequency,
                                   frequency_offset,
+                                  maximum_deviation,
                                   gain,
                                   ppm,
                                   bt,

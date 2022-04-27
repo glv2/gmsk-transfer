@@ -43,6 +43,8 @@ unsigned char gmsk_transfer_is_verbose();
  *  - frequency_offset: set the frequency of the radio frequency_offset Hz
  *    lower than the frequency of the transfer (can be negative to set the
  *    frequency higher)
+ *  - maximum_deviation: maximum allowable deviation of the center frequency
+ *    of a received signal in Hertz; 0 will use the default of bit_rate / 100
  *  - gain: gain of the radio transceiver
  *  - ppm: correction for the radio clock
  *  - bt: bandwidth-time parameter of the Gaussian filter
@@ -64,6 +66,7 @@ gmsk_transfer_t gmsk_transfer_create(char *radio_driver,
                                      unsigned int bit_rate,
                                      unsigned long int frequency,
                                      long int frequency_offset,
+                                     unsigned int maximum_deviation,
                                      unsigned int gain,
                                      float ppm,
                                      float bt,
@@ -104,6 +107,7 @@ gmsk_transfer_t gmsk_transfer_create_callback(char *radio_driver,
                                               unsigned int bit_rate,
                                               unsigned long int frequency,
                                               long int frequency_offset,
+                                              unsigned int maximum_deviation,
                                               unsigned int gain,
                                               float ppm,
                                               float bt,
