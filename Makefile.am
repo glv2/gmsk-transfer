@@ -2,7 +2,7 @@ AUTOMAKE_OPTIONS = foreign dist-lzip no-dist-gzip subdir-objects
 ACLOCAL_AMFLAGS = -I m4
 
 lib_LTLIBRARIES = libgmsk-transfer.la
-libgmsk_transfer_la_SOURCES = src/gmskframesync.c src/gmsk-transfer.c
+libgmsk_transfer_la_SOURCES = src/gmskframesync.h src/gmskframesync.c src/gmsk-transfer.c
 libgmsk_transfer_la_LDFLAGS = -version-info 1:0:0
 
 bin_PROGRAMS = gmsk-transfer
