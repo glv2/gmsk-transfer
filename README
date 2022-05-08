@@ -139,6 +139,12 @@ library, the following codes should also be available:
   - rs8: Reed-Solomon, 223/255
 
 
+## Bandwidth
+
+The bandwidth of the generated signal is approximatly
+(bit_rate * (1 + BT)) Hertz.
+
+
 ## Examples
 
 Send a file at 9600 b/s on 434 MHz using a HackRF:
