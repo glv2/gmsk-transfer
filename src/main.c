@@ -41,7 +41,7 @@ void signal_handler(int signum)
 
 void usage()
 {
-  printf("gmsk-transfer version 1.6.1\n");
+  printf("gmsk-transfer version 1.6.2\n");
   printf("\n");
   printf("Usage: gmsk-transfer [options] [filename]\n");
   printf("\n");
