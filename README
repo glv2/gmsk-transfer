@@ -185,12 +185,12 @@ them:
 
 Send a file at 16 kb/s using an audio cable:
 
-  cat file.dat | gmsk-transfer -t -a -r io -s 48000 -f 12000 -b 16000 | aplay -q -f S16_LE -r 48000 -c 1
+    cat file.dat | gmsk-transfer -t -a -r io -s 48000 -f 12000 -b 16000 | aplay -q -f S16_LE -r 48000 -c 1
 
 
 Receive a file at 16 kb/s using an audio cable:
 
-  arecord -q -f S16_LE -r 48000 -c 1 | gmsk-transfer -a -r io -s 48000 -f 12000 -b 16000 -T 10 > file.dat
+    arecord -q -f S16_LE -r 48000 -c 1 | gmsk-transfer -a -r io -s 48000 -f 12000 -b 16000 -T 10 > file.dat
 
 
 ## Library
