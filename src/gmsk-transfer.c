@@ -467,7 +467,7 @@ void send_frames(gmsk_transfer_t transfer)
         if(frame_complete)
         {
           /* Don't send the padding 0 bytes */
-          while(frame_samples[n - 1] == 0)
+          while((n > 0) && (frame_samples[n - 1] == 0))
           {
             n--;
           }
