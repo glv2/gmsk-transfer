@@ -21,6 +21,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #ifndef GMSKFRAMESYNC_H
 #define GMSKFRAMESYNC_H
 
+#include <liquid/liquid.h>
+
 // create GMSK frame synchronizer
 //  _k          :   samples/symbol
 //  _m          :   filter delay (symbols)
