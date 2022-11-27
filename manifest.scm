@@ -11,6 +11,7 @@
    "gawk"
    "gcc-toolchain"
    "git"
+   "gettext"
    "grep"
    "libtool"
    "lzip"

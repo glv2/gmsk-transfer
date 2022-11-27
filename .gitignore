@@ -8,7 +8,6 @@ depcomp
 .dirstamp
 examples/duplex
 examples/echo-server
-/gmsk-transfer
 install-sh
 .libs/
 libtool
@@ -17,6 +16,12 @@ m4/
 Makefile
 Makefile.in
 missing
+po/*.gmo
+po/*.mo
+po/POTFILES
+po/remove-potcdate.sed
+po/stamp-po
+src/gmsk-transfer
 test-driver
 test-suite.log
 tests/test-library-file

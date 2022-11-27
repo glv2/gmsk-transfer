@@ -19,18 +19,22 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <math.h>
+#include <locale.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "gettext.h"
 #include "gmsk-transfer.h"
+
+#define _(string) gettext(string)
 
 void signal_handler(int signum)
 {
   if(gmsk_transfer_is_verbose())
   {
-    fprintf(stderr, "\nStopping (signal %d)\n", signum);
+    fprintf(stderr, _("\nStopping (signal %d)\n"), signum);
   }
   else
   {
@@ -41,85 +45,86 @@ void signal_handler(int signum)
 
 void usage()
 {
-  printf("gmsk-transfer version 1.7.0\n");
+  printf(_("gmsk-transfer version 1.7.0\n"));
   printf("\n");
-  printf("Usage: gmsk-transfer [options] [filename]\n");
+  printf(_("Usage: gmsk-transfer [options] [filename]\n"));
   printf("\n");
-  printf("Options:\n");
+  printf(_("Options:\n"));
   printf("  -a\n");
-  printf("    Use audio samples instead of IQ samples.\n");
-  printf("  -b <bit rate>  (default: 9600 b/s)\n");
-  printf("    Bit rate of the GMSK transmission.\n");
-  printf("  -c <ppm>  (default: 0.0, can be negative)\n");
-  printf("    Correction for the radio clock.\n");
-  printf("  -d <filename>\n");
-  printf("    Dump a copy of the samples sent to or received from\n");
-  printf("    the radio.\n");
-  printf("  -e <fec[,fec]>  (default: h128,none)\n");
-  printf("    Inner and outer forward error correction codes to use.\n");
-  printf("  -f <frequency>  (default: 434000000 Hz)\n");
-  printf("    Frequency of the GMSK transmission.\n");
-  printf("  -g <gain>  (default: 0)\n");
-  printf("    Gain of the radio transceiver, or audio gain in dB.\n");
+  printf(_("    Use audio samples instead of IQ samples.\n"));
+  printf(_("  -b <bit rate>  (default: 9600 b/s)\n"));
+  printf(_("    Bit rate of the GMSK transmission.\n"));
+  printf(_("  -c <ppm>  (default: 0.0, can be negative)\n"));
+  printf(_("    Correction for the radio clock.\n"));
+  printf(_("  -d <filename>\n"));
+  printf(_("    Dump a copy of the samples sent to or received from\n"
+           "    the radio.\n"));
+  printf(_("  -e <fec[,fec]>  (default: h128,none)\n"));
+  printf(_("    Inner and outer forward error correction codes to use.\n"));
+  printf(_("  -f <frequency>  (default: 434000000 Hz)\n"));
+  printf(_("    Frequency of the GMSK transmission.\n"));
+  printf(_("  -g <gain>  (default: 0)\n"));
+  printf(_("    Gain of the radio transceiver, or audio gain in dB.\n"));
   printf("  -h\n");
-  printf("    This help.\n");
-  printf("  -i <id>  (default: \"\")\n");
-  printf("    Transfer id (at most 4 bytes). When receiving, the frames\n");
-  printf("    with a different id will be ignored.\n");
-  printf("  -n <bt>  (default: 0.5)\n");
-  printf("    Bandwidth-time parameter of the GMSK modulation.\n");
-  printf("  -o <offset>  (default: 0 Hz, can be negative)\n");
-  printf("    Set the central frequency of the transceiver 'offset' Hz\n");
-  printf("    lower than the signal frequency to send or receive.\n");
-  printf("  -r <radio>  (default: \"\")\n");
-  printf("    Radio to use.\n");
-  printf("  -s <sample rate>  (default: 2000000 S/s)\n");
-  printf("    Sample rate to use.\n");
-  printf("  -T <timeout>  (default: 0 s)\n");
-  printf("    Number of seconds after which reception will be stopped if\n");
-  printf("    no frame has been received. A timeout of 0 means no timeout.\n");
+  printf(_("    This help.\n"));
+  printf(_("  -i <id>  (default: \"\")\n"));
+  printf(_("    Transfer id (at most 4 bytes). When receiving, the frames\n"
+           "    with a different id will be ignored.\n"));
+  printf(_("  -n <bt>  (default: 0.5)\n"));
+  printf(_("    Bandwidth-time parameter of the GMSK modulation.\n"));
+  printf(_("  -o <offset>  (default: 0 Hz, can be negative)\n"));
+  printf(_("    Set the central frequency of the transceiver 'offset' Hz\n"
+           "    lower than the signal frequency to send or receive.\n"));
+  printf(_("  -r <radio>  (default: \"\")\n"));
+  printf(_("    Radio to use.\n"));
+  printf(_("  -s <sample rate>  (default: 2000000 S/s)\n"));
+  printf(_("    Sample rate to use.\n"));
+  printf(_("  -T <timeout>  (default: 0 s)\n"));
+  printf(_("    Number of seconds after which reception will be stopped if\n"
+           "    no frame has been received.\n"
+           "    A timeout of 0 means no timeout.\n"));
   printf("  -t\n");
-  printf("    Use transmit mode.\n");
-  printf("  -u <maximum deviation>  (default: (bit rate / 100) Hz)\n");
-  printf("    Maximum allowable deviation of the center frequency of a\n");
-  printf("    received signal. If its deviation if greater, frames will\n");
-  printf("    probably not be detected.\n");
+  printf(_("    Use transmit mode.\n"));
+  printf(_("  -u <maximum deviation>  (default: (bit rate / 100) Hz)\n"));
+  printf(_("    Maximum allowable deviation of the center frequency of a\n"
+           "    received signal. If its deviation if greater, frames will\n"
+           "    probably not be detected.\n"));
   printf("  -v\n");
-  printf("    Print debug messages.\n");
-  printf("  -w <delay>  (default: 0.0 s)\n");
-  printf("    Wait a little before switching the radio off.\n");
-  printf("    This can be useful if the hardware needs some time to send\n");
-  printf("    the last samples it has buffered.\n");
+  printf(_("    Print debug messages.\n"));
+  printf(_("  -w <delay>  (default: 0.0 s)\n"));
+  printf(_("    Wait a little before switching the radio off.\n"
+           "    This can be useful if the hardware needs some time to send\n"
+           "    the last samples it has buffered.\n"));
   printf("\n");
-  printf("By default the program is in 'receive' mode.\n");
-  printf("Use the '-t' option to use the 'transmit' mode.\n");
+  printf(_("By default the program is in 'receive' mode.\n"
+           "Use the '-t' option to use the 'transmit' mode.\n"));
   printf("\n");
-  printf("In 'receive' mode, the samples are received from the radio,\n");
-  printf("and the decoded data is written either to 'filename' if it\n");
-  printf("is specified, or to standard output.\n");
-  printf("In 'transmit' mode, the data to send is read either from\n");
-  printf("'filename' if it is specified, or from standard input,\n");
-  printf("and the samples are sent to the radio.\n");
+  printf(_("In 'receive' mode, the samples are received from the radio,\n"
+           "and the decoded data is written either to 'filename' if it\n"
+           "is specified, or to standard output.\n"
+           "In 'transmit' mode, the data to send is read either from\n"
+           "'filename' if it is specified, or from standard input,\n"
+           "and the samples are sent to the radio.\n"));
   printf("\n");
-  printf("Instead of a real radio transceiver, the 'io' radio type uses\n");
-  printf("standard input in 'receive' mode, and standard output in\n");
-  printf("'transmit' mode.\n");
-  printf("The 'file=path-to-file' radio type reads/writes the samples\n");
-  printf("from/to 'path-to-file'.\n");
-  printf("The IQ samples must be in 'complex float' format\n");
-  printf("(32 bits for the real part, 32 bits for the imaginary part).\n");
-  printf("The audio samples must be in 'signed integer' format (16 bits).\n");
+  printf(_("Instead of a real radio transceiver, the 'io' radio type uses\n"
+           "standard input in 'receive' mode, and standard output in\n"
+           "'transmit' mode.\n"
+           "The 'file=path-to-file' radio type reads/writes the samples\n"
+           "from/to 'path-to-file'.\n"
+           "The IQ samples must be in 'complex float' format\n"
+           "(32 bits for the real part, 32 bits for the imaginary part).\n"
+           "The audio samples must be in 'signed integer' format (16 bits).\n"));
   printf("\n");
-  printf("The gain parameter can be specified either as an integer to set a\n");
-  printf("global gain, or as a series of keys and values to set specific\n");
-  printf("gains (for example 'LNA=32,VGA=20').\n");
-  printf("When using the audio mode (with the '-a' option), the gain value\n");
-  printf("in dB is applied to the audio samples.\n");
+  printf(_("The gain parameter can be specified either as an integer to set a\n"
+           "global gain, or as a series of keys and values to set specific\n"
+           "gains (for example 'LNA=32,VGA=20').\n"
+           "When using the audio mode (with the '-a' option), the gain value\n"
+           "in dB is applied to the audio samples.\n"));
   printf("\n");
-  printf("Available radios (via SoapySDR):\n");
+  printf(_("Available radios (via SoapySDR):\n"));
   gmsk_transfer_print_available_radios();
   printf("\n");
-  printf("Available forward error correction codes:\n");
+  printf(_("Available forward error correction codes:\n"));
   gmsk_transfer_print_available_forward_error_codes();
 }
 
@@ -188,6 +193,11 @@ int main(int argc, char **argv)
 
   strcpy(inner_fec, "h128");
   strcpy(outer_fec, "none");
+
+  setlocale(LC_ALL, "");
+  setlocale(LC_NUMERIC, "C");
+  bindtextdomain(PACKAGE, LOCALEDIR);
+  textdomain(PACKAGE);
 
   while((opt = getopt(argc, argv, "ab:c:d:e:f:g:hi:n:o:r:s:T:tu:vw:")) != -1)
   {
@@ -266,7 +276,7 @@ int main(int argc, char **argv)
       break;
 
     default:
-      fprintf(stderr, "Error: Unknown parameter: '-%c %s'\n", opt, optarg);
+      fprintf(stderr, _("Error: Unknown parameter: '-%c %s'\n"), opt, optarg);
       return(EXIT_FAILURE);
     }
   }
@@ -302,7 +312,7 @@ int main(int argc, char **argv)
                                   audio);
   if(transfer == NULL)
   {
-    fprintf(stderr, "Error: Failed to initialize transfer\n");
+    fprintf(stderr, _("Error: Failed to initialize transfer\n"));
     return(EXIT_FAILURE);
   }
   gmsk_transfer_start(transfer);

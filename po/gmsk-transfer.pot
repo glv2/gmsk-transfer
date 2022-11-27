@@ -1,0 +1,371 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR Guillaume LE VAILLANT
+# This file is distributed under the same license as the gmsk-transfer package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: gmsk-transfer 1.7.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2022-11-27 18:38+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: src/gmsk-transfer.c:49 src/gmsk-transfer.c:873 src/gmsk-transfer.c:918
+#, c-format
+msgid "Error: %s\n"
+msgstr ""
+
+#: src/gmsk-transfer.c:437 src/gmsk-transfer.c:613 src/gmsk-transfer.c:698
+#, c-format
+msgid "Error: Memory allocation failed\n"
+msgstr ""
+
+#: src/gmsk-transfer.c:560
+#, c-format
+msgid "Frame %u for '%s': corrupted header\n"
+msgstr ""
+
+#: src/gmsk-transfer.c:564
+#, c-format
+msgid "Frame %u for '%s': corrupted payload\n"
+msgstr ""
+
+#: src/gmsk-transfer.c:573
+#, c-format
+msgid "Frame %u for '%s': ignored\n"
+msgstr ""
+
+#: src/gmsk-transfer.c:634
+#, c-format
+msgid "Timeout: %d s without frames\n"
+msgstr ""
+
+#: src/gmsk-transfer.c:728
+#, c-format
+msgid "Error: Invalid sample rate\n"
+msgstr ""
+
+#: src/gmsk-transfer.c:739
+#, c-format
+msgid "Error: Invalid frequency\n"
+msgstr ""
+
+#: src/gmsk-transfer.c:762
+#, c-format
+msgid "Error: This radio type only supports IQ samples\n"
+msgstr ""
+
+#: src/gmsk-transfer.c:779
+#, c-format
+msgid "Error: Invalid bit rate\n"
+msgstr ""
+
+#: src/gmsk-transfer.c:792
+#, c-format
+msgid "Error: Invalid maximum deviation (> bit rate / 2)\n"
+msgstr ""
+
+#: src/gmsk-transfer.c:806
+#, c-format
+msgid "Error: Invalid inner FEC\n"
+msgstr ""
+
+#: src/gmsk-transfer.c:814
+#, c-format
+msgid "Error: Invalid outer FEC\n"
+msgstr ""
+
+#: src/gmsk-transfer.c:825
+#, c-format
+msgid "Error: Id must be at most 4 bytes long\n"
+msgstr ""
+
+#: src/gmsk-transfer.c:835 src/gmsk-transfer.c:863 src/gmsk-transfer.c:992
+#, c-format
+msgid "Error: Failed to open '%s'\n"
+msgstr ""
+
+#: src/gmsk-transfer.c:926
+#, c-format
+msgid "Error: Unknown radio type\n"
+msgstr ""
+
+#: src/gmsk-transfer.c:1066
+#, c-format
+msgid "Info: Using IO pseudo-radio\n"
+msgstr ""
+
+#: src/gmsk-transfer.c:1073
+#, c-format
+msgid "Info: Using FILENAME pseudo-radio\n"
+msgstr ""
+
+#: src/gmsk-transfer.c:1121
+#, c-format
+msgid "  No radio detected\n"
+msgstr ""
+
+#: src/main.c:37
+#, c-format
+msgid ""
+"\n"
+"Stopping (signal %d)\n"
+msgstr ""
+
+#: src/main.c:48
+#, c-format
+msgid "gmsk-transfer version 1.7.0\n"
+msgstr ""
+
+#: src/main.c:50
+#, c-format
+msgid "Usage: gmsk-transfer [options] [filename]\n"
+msgstr ""
+
+#: src/main.c:52
+#, c-format
+msgid "Options:\n"
+msgstr ""
+
+#: src/main.c:54
+#, c-format
+msgid "    Use audio samples instead of IQ samples.\n"
+msgstr ""
+
+#: src/main.c:55
+#, c-format
+msgid "  -b <bit rate>  (default: 9600 b/s)\n"
+msgstr ""
+
+#: src/main.c:56
+#, c-format
+msgid "    Bit rate of the GMSK transmission.\n"
+msgstr ""
+
+#: src/main.c:57
+#, c-format
+msgid "  -c <ppm>  (default: 0.0, can be negative)\n"
+msgstr ""
+
+#: src/main.c:58
+#, c-format
+msgid "    Correction for the radio clock.\n"
+msgstr ""
+
+#: src/main.c:59
+#, c-format
+msgid "  -d <filename>\n"
+msgstr ""
+
+#: src/main.c:60
+#, c-format
+msgid ""
+"    Dump a copy of the samples sent to or received from\n"
+"    the radio.\n"
+msgstr ""
+
+#: src/main.c:62
+#, c-format
+msgid "  -e <fec[,fec]>  (default: h128,none)\n"
+msgstr ""
+
+#: src/main.c:63
+#, c-format
+msgid "    Inner and outer forward error correction codes to use.\n"
+msgstr ""
+
+#: src/main.c:64
+#, c-format
+msgid "  -f <frequency>  (default: 434000000 Hz)\n"
+msgstr ""
+
+#: src/main.c:65
+#, c-format
+msgid "    Frequency of the GMSK transmission.\n"
+msgstr ""
+
+#: src/main.c:66
+#, c-format
+msgid "  -g <gain>  (default: 0)\n"
+msgstr ""
+
+#: src/main.c:67
+#, c-format
+msgid "    Gain of the radio transceiver, or audio gain in dB.\n"
+msgstr ""
+
+#: src/main.c:69
+#, c-format
+msgid "    This help.\n"
+msgstr ""
+
+#: src/main.c:70
+#, c-format
+msgid "  -i <id>  (default: \"\")\n"
+msgstr ""
+
+#: src/main.c:71
+#, c-format
+msgid ""
+"    Transfer id (at most 4 bytes). When receiving, the frames\n"
+"    with a different id will be ignored.\n"
+msgstr ""
+
+#: src/main.c:73
+#, c-format
+msgid "  -n <bt>  (default: 0.5)\n"
+msgstr ""
+
+#: src/main.c:74
+#, c-format
+msgid "    Bandwidth-time parameter of the GMSK modulation.\n"
+msgstr ""
+
+#: src/main.c:75
+#, c-format
+msgid "  -o <offset>  (default: 0 Hz, can be negative)\n"
+msgstr ""
+
+#: src/main.c:76
+#, c-format
+msgid ""
+"    Set the central frequency of the transceiver 'offset' Hz\n"
+"    lower than the signal frequency to send or receive.\n"
+msgstr ""
+
+#: src/main.c:78
+#, c-format
+msgid "  -r <radio>  (default: \"\")\n"
+msgstr ""
+
+#: src/main.c:79
+#, c-format
+msgid "    Radio to use.\n"
+msgstr ""
+
+#: src/main.c:80
+#, c-format
+msgid "  -s <sample rate>  (default: 2000000 S/s)\n"
+msgstr ""
+
+#: src/main.c:81
+#, c-format
+msgid "    Sample rate to use.\n"
+msgstr ""
+
+#: src/main.c:82
+#, c-format
+msgid "  -T <timeout>  (default: 0 s)\n"
+msgstr ""
+
+#: src/main.c:83
+#, c-format
+msgid ""
+"    Number of seconds after which reception will be stopped if\n"
+"    no frame has been received.\n"
+"    A timeout of 0 means no timeout.\n"
+msgstr ""
+
+#: src/main.c:87
+#, c-format
+msgid "    Use transmit mode.\n"
+msgstr ""
+
+#: src/main.c:88
+#, c-format
+msgid "  -u <maximum deviation>  (default: (bit rate / 100) Hz)\n"
+msgstr ""
+
+#: src/main.c:89
+#, c-format
+msgid ""
+"    Maximum allowable deviation of the center frequency of a\n"
+"    received signal. If its deviation if greater, frames will\n"
+"    probably not be detected.\n"
+msgstr ""
+
+#: src/main.c:93
+#, c-format
+msgid "    Print debug messages.\n"
+msgstr ""
+
+#: src/main.c:94
+#, c-format
+msgid "  -w <delay>  (default: 0.0 s)\n"
+msgstr ""
+
+#: src/main.c:95
+#, c-format
+msgid ""
+"    Wait a little before switching the radio off.\n"
+"    This can be useful if the hardware needs some time to send\n"
+"    the last samples it has buffered.\n"
+msgstr ""
+
+#: src/main.c:99
+#, c-format
+msgid ""
+"By default the program is in 'receive' mode.\n"
+"Use the '-t' option to use the 'transmit' mode.\n"
+msgstr ""
+
+#: src/main.c:102
+#, c-format
+msgid ""
+"In 'receive' mode, the samples are received from the radio,\n"
+"and the decoded data is written either to 'filename' if it\n"
+"is specified, or to standard output.\n"
+"In 'transmit' mode, the data to send is read either from\n"
+"'filename' if it is specified, or from standard input,\n"
+"and the samples are sent to the radio.\n"
+msgstr ""
+
+#: src/main.c:109
+#, c-format
+msgid ""
+"Instead of a real radio transceiver, the 'io' radio type uses\n"
+"standard input in 'receive' mode, and standard output in\n"
+"'transmit' mode.\n"
+"The 'file=path-to-file' radio type reads/writes the samples\n"
+"from/to 'path-to-file'.\n"
+"The IQ samples must be in 'complex float' format\n"
+"(32 bits for the real part, 32 bits for the imaginary part).\n"
+"The audio samples must be in 'signed integer' format (16 bits).\n"
+msgstr ""
+
+#: src/main.c:118
+#, c-format
+msgid ""
+"The gain parameter can be specified either as an integer to set a\n"
+"global gain, or as a series of keys and values to set specific\n"
+"gains (for example 'LNA=32,VGA=20').\n"
+"When using the audio mode (with the '-a' option), the gain value\n"
+"in dB is applied to the audio samples.\n"
+msgstr ""
+
+#: src/main.c:124
+#, c-format
+msgid "Available radios (via SoapySDR):\n"
+msgstr ""
+
+#: src/main.c:127
+#, c-format
+msgid "Available forward error correction codes:\n"
+msgstr ""
+
+#: src/main.c:279
+#, c-format
+msgid "Error: Unknown parameter: '-%c %s'\n"
+msgstr ""
+
+#: src/main.c:315
+#, c-format
+msgid "Error: Failed to initialize transfer\n"
+msgstr ""
