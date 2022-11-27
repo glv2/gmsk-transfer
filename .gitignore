@@ -1,3 +1,4 @@
+ABOUT-NLS
 aclocal.m4
 autom4te.cache/
 compile
@@ -18,8 +19,17 @@ Makefile.in
 missing
 po/*.gmo
 po/*.mo
+po/boldquot.sed
+po/en@boldquot.header
+po/en@quot.header
+po/insert-header.sin
+po/Makefile.in.in
+po/Makevars.template
 po/POTFILES
+po/quot.sed
+po/remove-potcdate.sin
 po/remove-potcdate.sed
+po/Rules-quot
 po/stamp-po
 src/gmsk-transfer
 test-driver
@@ -35,3 +45,4 @@ tests/test-program.sh.trs
 *.la
 *.lo
 *.o
+*~
