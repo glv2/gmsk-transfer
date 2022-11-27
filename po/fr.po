@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: gmsk-transfer 1.7.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-11-27 18:38+0100\n"
+"POT-Creation-Date: 2022-11-27 21:09+0100\n"
 "PO-Revision-Date: 2022-11-27 12:21+0100\n"
 "Last-Translator: Guillaume Le Vaillant <glv@posteo.net>\n"
 "Language-Team: French\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
-#: src/gmsk-transfer.c:49 src/gmsk-transfer.c:873 src/gmsk-transfer.c:918
+#: src/gmsk-transfer.c:49 src/gmsk-transfer.c:882 src/gmsk-transfer.c:927
 #, c-format
 msgid "Error: %s\n"
 msgstr "Erreur : %s\n"
@@ -67,47 +67,52 @@ msgstr "Erreur : Cette radio ne supporte que les échantillons IQ\n"
 msgid "Error: Invalid bit rate\n"
 msgstr "Erreur : Débit non valide\n"
 
-#: src/gmsk-transfer.c:792
+#: src/gmsk-transfer.c:790
+#, c-format
+msgid "Error: BT must be between 0 and 1\n"
+msgstr "Erreur : BT doit être entre 0 et 1\n"
+
+#: src/gmsk-transfer.c:801
 #, c-format
 msgid "Error: Invalid maximum deviation (> bit rate / 2)\n"
 msgstr "Erreur : Déviation maximum non valide (> débit / 2)\n"
 
-#: src/gmsk-transfer.c:806
+#: src/gmsk-transfer.c:815
 #, c-format
 msgid "Error: Invalid inner FEC\n"
 msgstr "Erreur : FEC interne non valide\n"
 
-#: src/gmsk-transfer.c:814
+#: src/gmsk-transfer.c:823
 #, c-format
 msgid "Error: Invalid outer FEC\n"
 msgstr "Erreur : FEC externe non valide\n"
 
-#: src/gmsk-transfer.c:825
+#: src/gmsk-transfer.c:834
 #, c-format
 msgid "Error: Id must be at most 4 bytes long\n"
 msgstr "Erreur : Id doit être long d'au plus 4 octets\n"
 
-#: src/gmsk-transfer.c:835 src/gmsk-transfer.c:863 src/gmsk-transfer.c:992
+#: src/gmsk-transfer.c:844 src/gmsk-transfer.c:872 src/gmsk-transfer.c:1001
 #, c-format
 msgid "Error: Failed to open '%s'\n"
 msgstr "Erreur : Échec de l'ouverture de '%s'\n"
 
-#: src/gmsk-transfer.c:926
+#: src/gmsk-transfer.c:935
 #, c-format
 msgid "Error: Unknown radio type\n"
 msgstr "Erreur : Type de radio inconnu\n"
 
-#: src/gmsk-transfer.c:1066
+#: src/gmsk-transfer.c:1075
 #, c-format
 msgid "Info: Using IO pseudo-radio\n"
 msgstr "Info : Utilisation de la pseudo-radio IO\n"
 
-#: src/gmsk-transfer.c:1073
+#: src/gmsk-transfer.c:1082
 #, c-format
 msgid "Info: Using FILENAME pseudo-radio\n"
 msgstr "Info : Utilisation de la pseudo-radio FILENAME\n"
 
-#: src/gmsk-transfer.c:1121
+#: src/gmsk-transfer.c:1130
 #, c-format
 msgid "  No radio detected\n"
 msgstr "  Pas de radio détectée\n"

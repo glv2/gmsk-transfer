@@ -781,7 +781,16 @@ gmsk_transfer_t gmsk_transfer_create_callback(char *radio_driver,
     return(NULL);
   }
 
-  transfer->bt = bt;
+  if((bt > 0) && (bt < 1))
+  {
+    transfer->bt = bt;
+  }
+  else
+  {
+    fprintf(stderr, _("Error: BT must be between 0 and 1\n"));
+    free(transfer);
+    return(NULL);
+  }
 
   if(maximum_deviation == 0)
   {
