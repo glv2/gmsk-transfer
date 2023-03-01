@@ -143,8 +143,8 @@ library, the following codes should also be available:
 
 ## Bandwidth
 
-The bandwidth of the generated signal is approximately
-(bit_rate * (1 + BT)) Hertz.
+The occupied bandwidth (99% power) of the generated signal is approximately
+(bit_rate * 0.7 * (1 + BT)) Hertz.
 
 
 ## Examples
