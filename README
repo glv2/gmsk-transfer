@@ -1,6 +1,8 @@
 gmsk-transfer
 =============
 
+The active repository is at https://codeberg.org/glv/gmsk-transfer
+
 gmsk-transfer is a command-line program to send or receive data by software
 defined radio using the GMSK modulation.
 
